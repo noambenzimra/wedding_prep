@@ -19,6 +19,11 @@ DESCRIPTION:קבלת פנים 19:30 · קאי ריזורט\, עמק חפר\
  ate=yes
 BEGIN:VALARM
 ACTION:DISPLAY
+DESCRIPTION:בעוד שבוע החתונה של נועם ועדי!
+TRIGGER:-P7D
+END:VALARM
+BEGIN:VALARM
+ACTION:DISPLAY
 DESCRIPTION:מחר החתונה של נועם ועדי!
 TRIGGER:-P1D
 END:VALARM
