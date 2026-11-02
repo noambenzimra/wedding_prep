@@ -229,6 +229,13 @@ function toast(msg){let t=$(".toast");if(!t){t=document.createElement("div");t.c
 
 // ---------- storage: one data.json in a private GitHub repo ----------
 let cfg = store.get("wedding-cfg");          // {repo:"owner/name", token}
+// the key is kept in localStorage and mirrored in IndexedDB, so one wiped store doesn't log the device out
+const idb={open(){return new Promise((ok,bad)=>{const r=indexedDB.open("wedding",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>ok(r.result);r.onerror=()=>bad(r.error)})},
+  async get(k){try{const d=await idb.open();return await new Promise(ok=>{const q=d.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>ok(q.result||null);q.onerror=()=>ok(null)})}catch(e){return null}},
+  async set(k,v){try{const d=await idb.open();d.transaction("kv","readwrite").objectStore("kv").put(v,k)}catch(e){}},
+  async del(k){try{const d=await idb.open();d.transaction("kv","readwrite").objectStore("kv").delete(k)}catch(e){}}};
+function saveCfg(c){store.set("wedding-cfg",c);idb.set("cfg",c);try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}
+function clearCfg(){store.del("wedding-cfg");store.del("wedding-cache");idb.del("cfg")}
 let remote = null;                            // {data, sha} as last read from GitHub
 let D = EMPTY();                              // what the page shows: remote + pending changes
 let ops = [], flushing = false, flushT = null, syncState = "";
@@ -755,7 +762,7 @@ function editSettings(){
   ],D.settings,{onSave:v=>{saveSettings(v)},
     extra:`<div class="field full" style="border-top:1px solid var(--line);padding-top:10px"><span class="muted" style="font-size:13px">המכשיר הזה מחובר ל-${esc(cfg.repo)}.</span>
       <div class="row"><button type="button" class="link danger" id="m-logout">ניתוק המכשיר הזה</button></div></div>`});
-  form.querySelector("#m-logout").addEventListener("click",()=>{store.del("wedding-cfg");store.del("wedding-cache");location.reload()});
+  form.querySelector("#m-logout").addEventListener("click",()=>{clearCfg();setTimeout(()=>location.reload(),200)});
 }
 function editVendor(v){
   const isNew=!v; v=v?clone(v):{status:"quoted",cat:ui.vcat||"venue",files:[]};
@@ -915,7 +922,7 @@ function viewSetup(err){
         throw `לא מצאתי את ${repo}.${seen} ב-GitHub: עריכת המפתח ← Repository access ← Only select repositories ← wedding-data ← Update.`;
       }
       if(!r.ok) throw "החיבור נכשל ("+r.status+"). נסו שוב.";
-      store.set("wedding-cfg",cfg); start();
+      saveCfg(cfg); setBanner(""); start();
     }catch(m){cfg=null;viewSetup(typeof m==="string"?m:"החיבור נכשל: "+((m&&m.message)||"שגיאה לא ידועה"))}
   });
 }
@@ -924,14 +931,28 @@ async function start(){
   tab=ok.includes(h)?h:ok.includes(saved)?saved:"overview";
   const cached=store.get("wedding-cache");
   if(cached&&cached.data){remote=cached;D=clone(normalize(cached.data));render()}
-  try{remote=await fetchData();D=clone(remote.data);store.set("wedding-cache",remote);render();processInbox()}
+  try{remote=await fetchData();D=clone(remote.data);store.set("wedding-cache",remote);setBanner("");render();processInbox()}
   catch(e){
-    if(e&&(e.status===401||e.status===403)){viewSetup("המפתח כבר לא תקף. צרו מפתח חדש והתחברו שוב.");return}
-    if(!cached){$("#view").innerHTML=`<div class="panel empty">לא הצלחתי לטעון את הנתונים. בדקו את החיבור לאינטרנט ורעננו.</div>`;$("#hero").hidden=false}
-    else toast("אין חיבור. מוצגת הגרסה האחרונה שנשמרה במכשיר.");
+    // never drop a saved key on its own: show what GitHub said and let the person decide
+    const code=e&&e.status;
+    const txt= code===401?"GitHub לא מקבל את המפתח השמור (אולי פג תוקפו).": code===403||code===404?`GitHub חסם את הגישה לנתונים (קוד ${code}). אולי הגעתם למגבלת קריאות, נסו שוב בעוד כמה דקות.`:"אין חיבור ל-GitHub כרגע.";
+    setBanner(txt+(cached?" מוצגת הגרסה האחרונה שנשמרה במכשיר.":""), code===401||code===403||code===404);
+    if(!cached){$("#hero").hidden=false;$("#view").innerHTML=`<div class="panel empty">לא הצלחתי לטעון את הנתונים. <button class="link" data-act="retry">לנסות שוב</button></div>`}
   }
 }
-cfg?start():viewSetup();
+function setBanner(text,offerReplace){
+  let b=$("#banner");
+  if(!b){b=document.createElement("div");b.id="banner";b.className="alert bad";b.style.marginBottom="12px";$("#view").before(b)}
+  b.hidden=!text;
+  b.innerHTML=text?`${esc(text)} <button class="link" data-act="retry">לנסות שוב</button>${offerReplace?` · <button class="link" data-act="replace-key">להחליף מפתח</button>`:""}`:"";
+}
+document.addEventListener("click",e=>{const a=e.target.closest("[data-act]")?.dataset.act;
+  if(a==="retry"){setBanner("");start()}
+  if(a==="replace-key"){setBanner("");viewSetup()}});
+(async()=>{
+  if(!cfg||!cfg.token){const c=await idb.get("cfg");if(c&&c.token){cfg=c;store.set("wedding-cfg",c)}}
+  if(cfg&&cfg.token){idb.set("cfg",cfg);start()} else viewSetup();
+})();
 </script>
 </body>
 </html>
