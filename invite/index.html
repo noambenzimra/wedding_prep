@@ -7,9 +7,11 @@
 <meta name="description" content="אנחנו מתחתנים! יום ראשון, 22.8.2027, קאי ריזורט בעמק חפר">
 <meta property="og:title" content="נועם ועדי מתחתנים 💍">
 <meta property="og:description" content="יום ראשון · 22.8.2027 · קאי ריזורט, עמק חפר">
+<meta property="og:image" content="https://noambenzimra.github.io/wedding_prep/invite/photo.jpg">
+<meta name="theme-color" content="#ece6d8">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💍%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;400;500;700&family=Assistant:wght@400;600&family=Cormorant+Garamond:ital,wght@1,500&family=Bellefair&family=Karantina:wght@400;700&family=Pinyon+Script&family=Suez+One&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;400;500;700&family=Assistant:wght@400;600&family=Cormorant+Garamond:ital,wght@1,500&family=Bellefair&family=Karantina:wght@400;700&family=Pinyon+Script&family=Suez+One&family=Cinzel:wght@400;500&display=swap">
 <style>
 /* Layout: one screen. A sealed envelope fills the viewport; tapping the seal opens it and the card rises out.
    Every theme only redefines the tokens below and switches its ornaments on. */
@@ -100,6 +102,38 @@ body.opened{overflow:auto}
 
 /* ================= THEMES ================= */
 
+
+/* 0. גן זיתים בצבעי מים (ברירת המחדל): like the Save the Date — cream paper, watercolor olive branches, arch photo, brown-gold serif */
+body.t-garden{
+  --bg:#ece6d8; --bg-glow:#faf7ef; --paper:#fbf8f0; --ink:#5b4520; --soft:#8a7650; --accent:#a8843f; --line:#c9ad6e;
+  --btn-ink:#6e5427; --btn-on:#fbf8f0;
+  --env-a:#f3eee2; --env-b:#ebe4d4; --env-c:#e6dfcd; --flap-a:#f8f4ea; --flap-b:#ece5d5; --seam:#b39150;
+  --wax-hi:#c7c08a; --wax:#8f8a4c; --wax-lo:#55512a; --mono:#fbf1cf;
+  --names-font:"Frank Ruhl Libre",serif; --names-weight:400; --names-size:clamp(38px,6.4vh,54px);
+  --card-radius:6px; --card-shadow:0 30px 60px -32px rgb(90 70 30 / .45),0 2px 6px rgb(90 70 30 / .1)}
+.t-garden .card{overflow:hidden;gap:clamp(5px,1.1vh,10px);padding-top:clamp(18px,3.4vh,30px);
+  background-color:var(--paper);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .45 0 0 0 0 .3 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.t-garden .card::before,.t-garden .card::after{display:none}
+.t-garden .script{font-family:"Cinzel",serif;font-style:normal;text-transform:uppercase;letter-spacing:.1em;font-size:clamp(14px,2.2vh,19px);color:var(--ink);white-space:nowrap}
+.t-garden .names{flex-direction:row;gap:.28em;align-items:baseline;color:var(--ink)}
+.t-garden .names .amp{font-size:.62em;color:var(--accent)}
+.t-garden .lead,.t-garden .date,.t-garden .rule{display:none}
+.t-garden .deco.photo{display:block;position:relative;height:clamp(160px,29vh,290px);aspect-ratio:657/821;max-width:72%;
+  padding:6px;border:1.5px solid var(--line);border-radius:999px 999px 14px 14px}
+.t-garden .deco.photo img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 40%;border-radius:999px 999px 9px 9px}
+.t-garden .deco.datefull{display:block;font-family:"Cinzel",serif;font-size:clamp(30px,5.4vh,42px);color:var(--ink);letter-spacing:.04em;line-height:1;margin-top:2px}
+.t-garden .deco.datesub{display:block;font-size:14px;color:var(--soft);margin-top:-2px}
+.t-garden .when{color:var(--ink)}
+.t-garden .venue{font-size:clamp(17px,2.6vh,21px);color:var(--ink)}
+.t-garden .venue span{display:inline;font-size:inherit;color:inherit;font-family:inherit}
+.t-garden .venue span::before{content:" · "}
+.t-garden .deco.leaves{display:block;position:absolute;pointer-events:none;width:clamp(78px,24%,120px);height:auto;z-index:0}
+.t-garden .leaves.tl{top:16%;left:-6px}
+.t-garden .leaves.tr{top:12%;right:-8px;transform:scaleX(-1) rotate(-8deg)}
+.t-garden .leaves.bl{bottom:-18px;left:-10px;transform:rotate(180deg) scaleX(-1)}
+.t-garden .leaves.br{bottom:-22px;right:-12px;transform:rotate(200deg)}
+.t-garden .hint{color:var(--soft)}
+
 /* 1. לילה זהוב: deep night, gold foil type, slow twinkles */
 body.t-night{
   --bg:#0b1020; --bg-glow:#1d2747; --paper:#121a33; --ink:#f3e7c9; --soft:#b5ab93; --accent:#d8b45c; --line:#8a7440;
@@ -187,9 +221,31 @@ body.t-modern{
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="lf1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9b27a"/><stop offset=".55" stop-color="#9c9a5c"/><stop offset="1" stop-color="#d6b56f"/></linearGradient>
+  <linearGradient id="lf2" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#cdb06a"/><stop offset=".6" stop-color="#a9a66a"/><stop offset="1" stop-color="#8e8d50"/></linearGradient>
+  <path id="leaf" d="M0 0 C9 -7 28 -8 40 0 C28 8 9 7 0 0Z"/>
+  <symbol id="olive" viewBox="0 0 140 190">
+    <path d="M20 185 C40 140 62 100 120 8" fill="none" stroke="#a8843f" stroke-width="1.6" stroke-linecap="round" opacity=".85"/>
+    <g opacity=".82">
+      <use href="#leaf" fill="url(#lf1)" transform="translate(28 162) rotate(-150)"/><use href="#leaf" fill="url(#lf2)" transform="translate(30 160) rotate(-40)"/>
+      <use href="#leaf" fill="url(#lf2)" transform="translate(42 132) rotate(-160)"/><use href="#leaf" fill="url(#lf1)" transform="translate(45 130) rotate(-30)"/>
+      <use href="#leaf" fill="url(#lf1)" transform="translate(58 104) rotate(-165)"/><use href="#leaf" fill="url(#lf2)" transform="translate(62 101) rotate(-25)"/>
+      <use href="#leaf" fill="url(#lf2)" transform="translate(76 78) rotate(-170)"/><use href="#leaf" fill="url(#lf1)" transform="translate(80 75) rotate(-20)"/>
+      <use href="#leaf" fill="url(#lf1)" transform="translate(95 50) rotate(-175) scale(.85)"/><use href="#leaf" fill="url(#lf2)" transform="translate(98 47) rotate(-15) scale(.85)"/>
+      <use href="#leaf" fill="url(#lf2)" transform="translate(116 14) rotate(-60) scale(.7)"/>
+    </g>
+    <g stroke="#7d6a35" stroke-width=".5" opacity=".35" fill="none"><path d="M28 162 l-30 -17"/><path d="M45 130 l34 -20"/><path d="M62 101 l36 -17"/></g>
+    <g><circle cx="36" cy="150" r="5" fill="#8b8a45"/><circle cx="34.5" cy="148.5" r="1.4" fill="#e9e3b4" opacity=".7"/>
+       <circle cx="70" cy="92" r="4.4" fill="#9a974f"/><circle cx="68.7" cy="90.7" r="1.2" fill="#e9e3b4" opacity=".7"/></g>
+  </symbol></defs></svg>
 <div class="deco stars" aria-hidden="true"></div>
 <div class="stage">
   <main class="card" aria-label="הזמנה לחתונה של נועם ועדי">
+    <svg class="deco leaves tl" viewBox="0 0 140 190" aria-hidden="true"><use href="#olive"/></svg>
+    <svg class="deco leaves tr" viewBox="0 0 140 190" aria-hidden="true"><use href="#olive"/></svg>
+    <svg class="deco leaves bl" viewBox="0 0 140 190" aria-hidden="true"><use href="#olive"/></svg>
+    <svg class="deco leaves br" viewBox="0 0 140 190" aria-hidden="true"><use href="#olive"/></svg>
     <svg class="deco branch top" viewBox="0 0 240 46" aria-hidden="true"><g fill="none" stroke="var(--accent)" stroke-width="1.3" stroke-linecap="round">
       <path d="M8 30 C70 14 170 14 232 30"/></g><g fill="var(--accent)" opacity=".85">
       <ellipse cx="40" cy="20" rx="9" ry="3.2" transform="rotate(-28 40 20)"/><ellipse cx="52" cy="29" rx="9" ry="3.2" transform="rotate(24 52 29)"/>
@@ -199,6 +255,7 @@ body.t-modern{
       <circle cx="120" cy="18" r="4"/><circle cx="110" cy="21" r="2.4" opacity=".6"/><circle cx="130" cy="21" r="2.4" opacity=".6"/></g></svg>
     <span class="deco lemons" aria-hidden="true">🍋 ✦ 🍋</span>
     <span class="script">we're getting married</span>
+    <div class="deco photo"><img src="photo.jpg" alt="נועם ועדי עם הכלב" width="657" height="821" decoding="async"></div>
     <h1 class="names"><span>נועם</span><span class="amp">&amp;</span><span>עדי</span></h1>
     <p class="lead">בשמחה ובהתרגשות אנחנו מזמינים אתכם לחגוג איתנו את יום חתונתנו</p>
     <div class="date" aria-label="יום ראשון, 22 באוגוסט 2027, י״ט באב תשפ״ז">
@@ -206,6 +263,8 @@ body.t-modern{
       <span class="big">22.8<small>2027</small></span>
       <span class="side">י״ט באב תשפ״ז</span>
     </div>
+    <span class="deco datefull" aria-hidden="true">22.08.2027</span>
+    <span class="deco datesub" aria-hidden="true">יום ראשון · י״ט באב תשפ״ז</span>
     <p class="when">קבלת פנים <b>19:30</b></p>
     <div class="rule" aria-hidden="true"></div>
     <p class="venue">קאי ריזורט<span>עמק חפר</span></p>
@@ -240,10 +299,10 @@ body.t-modern{
 </div>
 
 <script>
-// ?t=night|olive|riviera|velvet|modern picks a theme; ?open=1 skips the envelope (used by the comparison page)
+// ?t=classic|night|olive|riviera|velvet|modern picks another theme (default: garden); ?open=1 skips the envelope (used by the comparison page)
 const qs=new URLSearchParams(location.search);
-const THEMES=["classic","night","olive","riviera","velvet","modern"];
-const theme=THEMES.includes(qs.get("t"))?qs.get("t"):"classic";
+const THEMES=["garden","classic","night","olive","riviera","velvet","modern"];
+const theme=THEMES.includes(qs.get("t"))?qs.get("t"):"garden";
 if(theme!=="classic")document.body.classList.add("t-"+theme);
 // the bottom olive branch reuses the top one
 document.querySelector(".deco.branch.bottom").innerHTML=document.querySelector(".deco.branch.top").innerHTML;

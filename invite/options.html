@@ -33,6 +33,7 @@ a.open{color:var(--accent);font-weight:600;font-size:14px;white-space:nowrap}
 </div>
 <script>
 const T=[
+  ["garden","גן זיתים בצבעי מים","בסגנון ה-Save the Date, עם התמונה שלכם (ברירת המחדל)"],
   ["classic","קלאסי","שמנת וזהב, מאופק"],
   ["night","לילה זהוב","כחול לילה, אותיות זהב וכוכבים מנצנצים"],
   ["olive","גן זיתים","ירוק מרווה וענפי זית, אוורירי"],
@@ -43,7 +44,7 @@ const T=[
 const g=document.getElementById("grid");
 g.innerHTML=T.map(([k,n,d])=>`<figure>
   <div class="phone"><iframe loading="lazy" title="${n}" src="./?t=${k}&open=1"></iframe></div>
-  <figcaption><div><b>${n}</b><br><span>${d}</span></div><a class="open" href="./${k==="classic"?"":"?t="+k}" target="_blank">לפתיחה ←</a></figcaption></figure>`).join("");
+  <figcaption><div><b>${n}</b><br><span>${d}</span></div><a class="open" href="./${k==="garden"?"":"?t="+k}" target="_blank">לפתיחה ←</a></figcaption></figure>`).join("");
 function fit(){document.querySelectorAll(".phone").forEach(p=>{p.querySelector("iframe").style.transform=`scale(${p.clientWidth/375})`})}
 addEventListener("resize",fit);fit();
 </script>
