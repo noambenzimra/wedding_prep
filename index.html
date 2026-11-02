@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>החתונה שלנו</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💍%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Assistant:wght@400;600;700&display=swap">
+<style>
+/* Layout: a header card with the countdown, a sticky tab bar, one working panel per tab. */
+:root{
+  --bg:#f6f5f8; --surface:#ffffff; --fg:#221b2a; --muted:#6d6577; --line:#e4e0ea;
+  --accent:#7d2350; --accent-soft:#f5e6ee; --gold:#9a6f17; --ok:#2f7d4f; --warn:#b4561a; --bad:#b42318;
+  --font-display:"Frank Ruhl Libre", "David", "Times New Roman", serif;
+  --font-body:"Assistant", "Arial Hebrew", Arial, sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#16121a; --surface:#211b27; --fg:#efe9f3; --muted:#a69cb0; --line:#362d40;
+  --accent:#e07aa8; --accent-soft:#3a2030; --gold:#d8ae55; --ok:#6fcf97; --warn:#f0a060; --bad:#f97066; color-scheme:dark}}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+[hidden]{display:none!important}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 60px}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;font-weight:700}
+h1{font-size:clamp(28px,6vw,40px);line-height:1.1}
+h2{font-size:22px}
+h3{font-size:17px}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header.hero{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;justify-content:space-between;padding-block:8px 20px;border-bottom:1px solid var(--line)}
+.hero .sub{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;color:var(--muted)}
+.count{display:flex;align-items:baseline;gap:8px}
+.count b{font-family:var(--font-display);font-size:clamp(44px,10vw,64px);line-height:1;color:var(--accent)}
+.ghost{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px}
+.ghost:hover{border-color:var(--accent)}
+.sync{font-size:13px;color:var(--muted)}
+.sync.err{color:var(--bad)}
+
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:4px;overflow-x:auto;padding-block:10px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+nav.tabs button{background:none;border:0;border-radius:999px;padding:7px 16px;white-space:nowrap;color:var(--muted);font-weight:600}
+nav.tabs button[aria-selected="true"]{background:var(--accent);color:var(--surface)}
+
+.grid{display:grid;gap:16px}
+.cols-4{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.cols-2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.stat .label{font-size:13px;color:var(--muted);letter-spacing:.02em}
+.stat .value{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .note{font-size:13px;color:var(--muted)}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:8px}
+.bar > i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.bar > i.over{background:var(--bad)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.between{justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:10px}
+.btn{background:var(--accent);color:var(--surface);border:0;border-radius:8px;padding:8px 16px;font-weight:700}
+.btn.small{padding:5px 12px;font-size:14px}
+.btn:disabled{opacity:.6}
+.link{background:none;border:0;color:var(--accent);padding:0;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.danger{color:var(--bad)}
+.pill{display:inline-block;padding:1px 10px;border-radius:99px;font-size:13px;font-weight:600;border:1px solid currentColor}
+.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.bad{color:var(--bad)} .pill.mut{color:var(--muted)} .pill.acc{color:var(--accent)}
+.alert{border-inline-start:4px solid var(--warn);padding:10px 14px;background:var(--surface);border-radius:8px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-inline-end:1px solid var(--line)}
+.alert.bad{border-inline-start-color:var(--bad)}
+ul.clean{list-style:none;margin:0;padding:0}
+ul.clean li{padding:8px 0;border-bottom:1px solid var(--line)}
+ul.clean li:last-child{border-bottom:0}
+
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:right;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:13px;color:var(--muted);font-weight:600}
+td input,td select{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:3px 6px;min-width:0}
+td input.narrow{width:64px}
+td input.money{width:100px}
+td input:read-only{border-style:dashed;color:var(--muted)}
+tr.cat-row td:first-child{font-weight:600}
+.expand{background:none;border:0;padding:0 0 0 6px;color:var(--muted);font-size:13px}
+.expand[aria-expanded="true"]{color:var(--accent)}
+tr.items-row > td{background:var(--bg);padding:10px 12px 14px}
+.items{display:flex;flex-direction:column;gap:6px}
+.item{display:grid;grid-template-columns:minmax(120px,1fr) 100px 100px auto auto;gap:8px;align-items:center}
+.item.head{font-size:12px;color:var(--muted)}
+.item input[type="text"],.item input[inputmode]{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;min-width:0;width:100%}
+.item.vendor-line{color:var(--muted);font-size:14px}
+.item-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.item-add input{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:5px 8px;min-width:0}
+@media (max-width:560px){.item{grid-template-columns:1fr 84px 84px auto auto;font-size:14px}}
+
+.field{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.field input,.field select,.field textarea,.toolbar input,.toolbar select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.toolbar input[type="search"]{flex:1 1 180px}
+.in{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+
+.vendor{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.vendor.booked{border-color:var(--ok)}
+.vendor.rejected{opacity:.6}
+.vendor .price{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.cat-head{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.vgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+
+.task{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.task input[type="checkbox"]{width:18px;height:18px;margin-top:3px;accent-color:var(--accent)}
+.task.done .t{text-decoration:line-through;color:var(--muted)}
+.task .meta{font-size:13px;color:var(--muted)}
+.task .t{flex:1;min-width:0}
+
+.overlay{position:fixed;inset:0;background:rgb(0 0 0 / .45);display:flex;align-items:flex-start;justify-content:center;z-index:20;padding:max(24px,env(safe-area-inset-top,0px)) 12px 24px;overflow-y:auto}
+.modal{background:var(--surface);border-radius:14px;padding:20px;width:min(560px,100%);display:flex;flex-direction:column;gap:12px;border:1px solid var(--line)}
+.form-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.form-grid .full{grid-column:1/-1}
+.toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:10px;z-index:30;max-width:90vw}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+.empty .btn{margin-top:10px}
+.setup{max-width:560px;margin:8vh auto 0}
+.setup ol{padding-inline-start:20px;margin:0;display:flex;flex-direction:column;gap:6px}
+.setup code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 5px;direction:ltr;unicode-bidi:embed}
+@media (prefers-reduced-motion:no-preference){.bar>i{transition:width .4s ease}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero" id="hero" hidden>
+    <div>
+      <h1 id="h-names">החתונה שלנו</h1>
+      <div class="sub" id="h-sub"></div>
+    </div>
+    <div class="row" style="gap:16px">
+      <div class="count" id="h-count"></div>
+      <div class="stack" style="gap:4px;align-items:flex-end">
+        <button class="ghost" id="btn-settings">פרטי החתונה</button>
+        <span class="sync" id="sync"></span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" id="tabs" hidden>
+    <button role="tab" data-tab="overview">סקירה</button>
+    <button role="tab" data-tab="budget">תקציב</button>
+    <button role="tab" data-tab="vendors">ספקים וחוזים</button>
+    <button role="tab" data-tab="guests">מוזמנים</button>
+    <button role="tab" data-tab="tasks">משימות</button>
+  </nav>
+
+  <main id="view"><div class="empty">טוען…</div></main>
+</div>
+
+<script>
+// ---------- constants (israeli-wedding-planner skill, 2026 bands) ----------
+const CATS = [
+  {k:"venue",   n:"אולם וקייטרינג", share:60},
+  {k:"photo",   n:"צילום ווידאו", share:10},
+  {k:"music",   n:"מוזיקה (DJ / להקה)", share:6},
+  {k:"dress",   n:"שמלת כלה", share:5},
+  {k:"suit",    n:"חליפת חתן", share:2},
+  {k:"makeup",  n:"איפור ושיער", share:2.5},
+  {k:"design",  n:"עיצוב ופרחים", share:3.5},
+  {k:"invite",  n:"הזמנות ומגנטים", share:1.5},
+  {k:"rabbi",   n:"רבנות ואגרות", share:1},
+  {k:"transport",n:"הסעות", share:1.5},
+  {k:"other",   n:"שונות (מתנות, טיפים)", share:2},
+  {k:"buffer",  n:"בלת״ם", share:5},
+];
+const CAT = Object.fromEntries(CATS.map(c=>[c.k,c]));
+const VSTATUS = {considering:["בבדיקה","mut"], quoted:["התקבלה הצעה","acc"], booked:["נסגר","ok"], rejected:["ירד מהפרק","bad"]};
+const GROUPS = {close:["משפחה קרובה",750], family:["משפחה מורחבת",350], friends:["חברים",400], work:["עבודה",300], other:["מכרים",250]};
+const RSVP = {pending:["לא ענו","mut"], yes:["מגיעים","ok"], no:["לא מגיעים","bad"]};
+const TEMPLATE = [
+  [-365,"קביעת תקציב והערכת מספר מוזמנים","",true],
+  [-365,"סגירת אולם ותאריך","venue",true],
+  [-300,"סגירת צלם ווידאו","photo"],
+  [-300,"סגירת DJ או להקה","music"],
+  [-270,"בחירת שמלה (4 עד 6 חודשים לתיקונים)","dress"],
+  [-180,"סגירת איפור ושיער","makeup"],
+  [-180,"הזמנת הזמנות ומגנטים","invite"],
+  [-180,"סגירת מעצב/ת ופרחים","design"],
+  [-110,"איסוף מסמכים לרבנות: ת״ז מקוריות, תמונת פספורט לכל אחד, כתובות ההורים","rabbi"],
+  [-90,"סגירת רשימת מוזמנים",""],
+  [-90,"סגירת הסעות","transport"],
+  [-75,"פתיחת תיק נישואין ברבנות (שניכם יחד, אגרה 844 ₪)","rabbi"],
+  [-60,"החלטה על הסכם ממון (לפני החתונה מספיק נוטריון; אחרי צריך בית משפט)",""],
+  [-60,"חליפת חתן","suit"],
+  [-45,"שני עדים כשרים לכתובה (לא קרובי משפחה)","rabbi"],
+  [-40,"לוודא שיש היתר אקו״ם (395.30 ₪) או שה-DJ מכסה","music"],
+  [-30,"מדידה אחרונה לשמלה","dress"],
+  [-30,"אישור כל הספקים בכתב",""],
+  [-30,"קביעת טבילה במקווה (1 עד 7 ימים לפני)","rabbi"],
+  [-30,"הסכם קדם-נישואין למניעת סרבנות גט (רשות)",""],
+  [-21,"סידורי הושבה",""],
+  [-14,"סבב אישורי הגעה בטלפון",""],
+  [-7,"מספר מנות סופי לאולם","venue"],
+  [-7,"לו״ז יום החתונה לכל הספקים",""],
+  [-3,"מעטפות לטיפים ותשלומים אחרונים","other"],
+  [14,"איסוף תעודת נישואין ועדכון סטטוס במשרד הפנים","rabbi"],
+];
+const EMPTY = ()=>({settings:{}, vendors:[], guests:[], tasks:[], items:[]});
+
+// ---------- helpers ----------
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nf = new Intl.NumberFormat("he-IL",{maximumFractionDigits:0});
+const ils = n=>nf.format(Math.round(+n||0))+" ₪";
+const num = v=>{const x=parseFloat(String(v??"").replace(/[^\d.\-]/g,""));return isNaN(x)?0:x};
+const rid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const clone = o=>JSON.parse(JSON.stringify(o));
+const today = ()=>{const d=new Date();d.setHours(0,0,0,0);return d};
+const parseD = s=>{if(!s)return null;const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const fmtD = s=>{const d=parseD(s);return d?d.toLocaleDateString("he-IL",{day:"numeric",month:"short",year:"numeric"}):""};
+const isoD = d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const addDays = (s,n)=>{const d=parseD(s);d.setDate(d.getDate()+n);return isoD(d)};
+const daysTo = s=>{const d=parseD(s);return d?Math.round((d-today())/864e5):null};
+const hebDate = s=>{try{return parseD(s).toLocaleDateString("he-IL-u-ca-hebrew",{day:"numeric",month:"long",year:"numeric"})}catch(e){return ""}};
+const store = {get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}, del(k){try{localStorage.removeItem(k)}catch(e){}}};
+let toastT;
+function toast(msg){let t=$(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t)}t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3600)}
+
+// ---------- storage: one data.json in a private GitHub repo ----------
+let cfg = store.get("wedding-cfg");          // {repo:"owner/name", token}
+let remote = null;                            // {data, sha} as last read from GitHub
+let D = EMPTY();                              // what the page shows: remote + pending changes
+let ops = [], flushing = false, flushT = null, syncState = "";
+
+function b64encode(bytes){let s="";for(let i=0;i<bytes.length;i+=0x8000)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));return btoa(s)}
+function b64decodeText(b64){const bin=atob(b64.replace(/\s/g,""));return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)))}
+async function gh(path,{method="GET",body,accept}={}){
+  return fetch("https://api.github.com/repos/"+cfg.repo+path,{method,cache:"no-store",
+    headers:{Authorization:"Bearer "+cfg.token,Accept:accept||"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28",...(body?{"Content-Type":"application/json"}:{})},
+    body:body?JSON.stringify(body):undefined});
+}
+function normalize(d){d=d||{};const e=EMPTY();for(const k in e)if(d[k]==null)d[k]=e[k];return d}
+async function fetchData(){
+  const r=await gh("/contents/data.json");
+  if(r.status===404) return {data:EMPTY(),sha:null};
+  if(!r.ok) throw {status:r.status};
+  const j=await r.json();
+  let text=j.content?b64decodeText(j.content):null;
+  if(text==null){const raw=await gh("/contents/data.json",{accept:"application/vnd.github.raw"});text=await raw.text()}
+  return {data:normalize(JSON.parse(text)),sha:j.sha};
+}
+async function putData(data,sha){
+  const bytes=new TextEncoder().encode(JSON.stringify(data,null,1));
+  const r=await gh("/contents/data.json",{method:"PUT",body:{message:"עדכון נתונים",content:b64encode(bytes),...(sha?{sha}:{})}});
+  if(r.ok){const j=await r.json();return {ok:true,sha:j.content.sha}}
+  return {ok:false,status:r.status};
+}
+function setSync(s){syncState=s;const el=$("#sync");if(!el)return;
+  el.className="sync"+(s==="err"?" err":"");
+  el.textContent= s==="saving"?"שומר…": s==="err"?"השמירה נכשלה, ננסה שוב": s==="saved"?"נשמר ✓":"";}
+// every change is a function applied to the data; on a conflict it is replayed on the newest copy
+function mutate(fn){
+  try{fn(D)}catch(e){console.error(e)}
+  ops.push(fn); setSync("saving"); rerender();
+  clearTimeout(flushT); flushT=setTimeout(flush,700);
+}
+async function flush(){
+  if(flushing){clearTimeout(flushT);flushT=setTimeout(flush,400);return}
+  if(!ops.length)return;
+  flushing=true; const batch=ops; ops=[];
+  try{
+    let done=false;
+    for(let attempt=0;attempt<4&&!done;attempt++){
+      const base = attempt===0&&remote ? {data:clone(remote.data),sha:remote.sha} : await fetchData();
+      batch.forEach(f=>{try{f(base.data)}catch(e){}});
+      const res=await putData(base.data,base.sha);
+      if(res.ok){remote={data:base.data,sha:res.sha};done=true}
+      else if(res.status===401||res.status===403){throw {auth:true}}
+      else if(res.status!==409&&res.status!==422){throw res}
+    }
+    if(!done) throw {conflict:true};
+    D=clone(remote.data); ops.forEach(f=>{try{f(D)}catch(e){}});
+    store.set("wedding-cache",remote);
+    setSync(ops.length?"saving":"saved"); rerender();
+  }catch(e){
+    ops=batch.concat(ops); setSync("err");
+    if(e&&e.auth) toast("מפתח הגישה לא תקף. היכנסו ל'פרטי החתונה' והתחברו מחדש.");
+    clearTimeout(flushT); flushT=setTimeout(flush,8000);
+  }finally{flushing=false; if(ops.length&&syncState!=="err"){clearTimeout(flushT);flushT=setTimeout(flush,300)}}
+}
+async function refresh(){
+  if(!cfg||flushing||ops.length||document.hidden)return;
+  try{const r=await fetchData(); if(!remote||r.sha!==remote.sha){remote=r;D=clone(r.data);store.set("wedding-cache",r);rerender()}}catch(e){}
+}
+window.addEventListener("beforeunload",e=>{if(ops.length||flushing){e.preventDefault();e.returnValue=""}});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)refresh()});
+setInterval(refresh,25000);
+
+// collection helpers
+function upsert(col,rec){mutate(d=>{const a=d[col];const i=a.findIndex(x=>x.id===rec.id);if(i>=0)a[i]=rec;else a.push(rec)})}
+function patch(col,id,p){mutate(d=>{const x=d[col].find(x=>x.id===id);if(x)Object.assign(x,p)})}
+function remove(col,id){mutate(d=>{d[col]=d[col].filter(x=>x.id!==id)})}
+function saveSettings(p){mutate(d=>{d.settings={...d.settings,...p}})}
+function setCatPlan(k,v){mutate(d=>{d.settings.catPlan={...(d.settings.catPlan||{}),[k]:v}})}
+
+// files (contracts) live in files/ of the same private repo
+async function uploadFile(file){
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  if(bytes.length>20*1024*1024) throw {msg:"הקובץ גדול מ-20MB."};
+  const ext=(file.name.split(".").pop()||"pdf").toLowerCase().replace(/[^a-z0-9]/g,"")||"pdf";
+  const path=`files/${rid()}.${ext}`;
+  const r=await gh("/contents/"+path,{method:"PUT",body:{message:"קובץ: "+file.name,content:b64encode(bytes)}});
+  if(!r.ok) throw {msg:"ההעלאה נכשלה. נסו שוב."};
+  return {path,name:file.name};
+}
+async function deleteFile(path){
+  try{const r=await gh("/contents/"+encodeURI(path));if(!r.ok)return;const j=await r.json();
+    await gh("/contents/"+encodeURI(path),{method:"DELETE",body:{message:"מחיקת קובץ",sha:j.sha}})}catch(e){}
+}
+async function openFile(path,name){
+  const w=window.open("","_blank");
+  if(w){w.document.title=name||"קובץ";w.document.body.style.font="16px sans-serif";w.document.body.textContent="פותח…"}
+  try{
+    const r=await gh("/contents/"+encodeURI(path),{accept:"application/vnd.github.raw"});
+    if(!r.ok) throw 0;
+    const type=/\.pdf$/i.test(path)?"application/pdf":/\.png$/i.test(path)?"image/png":/\.webp$/i.test(path)?"image/webp":"image/jpeg";
+    const url=URL.createObjectURL(new Blob([await r.arrayBuffer()],{type}));
+    if(w) w.location.href=url; else location.href=url;
+  }catch(e){if(w)w.close();toast("לא הצלחתי לפתוח את הקובץ.")}
+}
+
+// ---------- derived numbers ----------
+const names = ()=>({a:D.settings.nameA||"צד א׳", b:D.settings.nameB||"צד ב׳"});
+const vfiles = v=>v.files||[];
+function calc(){
+  const st=D.settings, total=num(st.budget);
+  const per={};
+  CATS.forEach(c=>{
+    const items=D.items.filter(x=>x.cat===c.k);
+    const set=st.catPlan&&st.catPlan[c.k]!=null&&st.catPlan[c.k]!=="";
+    const plan= items.length ? items.reduce((s,x)=>s+num(x.plan),0) : set ? num(st.catPlan[c.k]) : total*c.share/100;
+    per[c.k]={plan,auto:!items.length&&!set,fromItems:items.length>0,items,committed:0,paid:0};
+  });
+  D.vendors.filter(v=>v.status==="booked").forEach(v=>{const p=per[v.cat]||per.other;p.committed+=num(v.price);p.paid+=num(v.paid)});
+  D.items.forEach(x=>{const p=per[x.cat]||per.other;p.committed+=num(x.actual);if(x.paid)p.paid+=num(x.actual)});
+  let committed=0,paid=0;Object.values(per).forEach(p=>{committed+=p.committed;paid+=p.paid});
+  const g={invited:0,yes:0,no:0,pending:0,gifts:0,a:0,b:0,both:0};
+  D.guests.forEach(x=>{const n=Math.max(1,num(x.count)||1);g.invited+=n;g[x.rsvp||"pending"]+=n;g[x.side||"both"]+=n;
+    if(x.rsvp!=="no")g.gifts+=n*(GROUPS[x.group]?GROUPS[x.group][1]:300)});
+  const heads=g.yes+g.pending;
+  const income=num(st.savings)+num(st.parentsA)+num(st.parentsB);
+  const tasksOpen=D.tasks.filter(t=>!t.done), overdue=tasksOpen.filter(t=>t.due&&daysTo(t.due)<0);
+  return {per,total,committed,paid,g,heads,income,tasksOpen,overdue};
+}
+
+// ---------- header ----------
+function renderHeader(){
+  const st=D.settings, n=names();
+  $("#h-names").textContent=(st.nameA||st.nameB)?`${n.a} ו${n.b}`:"החתונה שלנו";
+  const bits=[];
+  if(st.date) bits.push(`<span>${esc(fmtD(st.date))}</span><span>${esc(hebDate(st.date))}</span>`);
+  if(st.venue) bits.push(`<span>${esc(st.venue)}${st.city?", "+esc(st.city):""}</span>`);
+  $("#h-sub").innerHTML=bits.join("")||`<span>הוסיפו תאריך ואולם בכפתור "פרטי החתונה"</span>`;
+  const d=daysTo(st.date);
+  $("#h-count").innerHTML=d==null?"":d>0?`<b class="num">${d}</b><span class="muted">ימים לחופה</span>`:d===0?`<b>היום!</b>`:`<span class="muted">מזל טוב 🎉</span>`;
+}
+
+// ---------- overview ----------
+function viewOverview(){
+  const c=calc(), st=D.settings;
+  const pct=(a,b)=>b?Math.min(100,Math.round(a/b*100)):0;
+  const alerts=[];
+  if(!st.date) alerts.push(`<div class="alert">אין עדיין תאריך. <button class="link" data-act="settings">הוסיפו פרטי חתונה</button> כדי שהמשימות והספירה לאחור יעבדו.</div>`);
+  if(st.date&&!st.rabbiOpened){
+    const last=addDays(st.date,-45), lt=daysTo(last), early=daysTo(addDays(st.date,-90));
+    const cls=lt<=21?"bad":"";
+    const txt= lt<0?`עבר המועד האחרון לפתיחת תיק נישואין (${fmtD(last)}). פנו מיד ללשכת רישום נישואין.`
+      : early>0?`תיק נישואין ברבנות: אפשר לפתוח מ־${fmtD(addDays(st.date,-90))} בערך, ולא יאוחר מ־<b>${fmtD(last)}</b> (45 יום לפני). כדאי להתחיל לאסוף מסמכים מוקדם.`
+      : `זה הזמן לפתוח תיק נישואין. מועד אחרון: <b>${fmtD(last)}</b> (עוד ${lt} ימים).`;
+    alerts.push(`<div class="alert ${cls}">${txt} <button class="link" data-act="rabbi-done">פתחנו תיק ✓</button></div>`);
+  }
+  if(c.overdue.length) alerts.push(`<div class="alert bad">${c.overdue.length} משימות באיחור. <button class="link" data-tab-go="tasks">למשימות</button></div>`);
+  const next=D.tasks.filter(t=>!t.done).sort((a,b)=>(a.due||"9").localeCompare(b.due||"9")).slice(0,6);
+  const booked=CATS.filter(k=>D.vendors.some(v=>v.cat===k.k&&v.status==="booked")).length;
+  const gMin=num(st.guestMin), extraP=num(st.extraPlate)||num(st.perPlate);
+  const extraHeads=Math.max(0,c.heads-gMin), venueExtra=gMin?extraHeads*extraP:num(st.perPlate)*c.heads;
+  return `
+  <div class="stack" style="gap:16px">
+    ${alerts.join("")}
+    <div class="grid cols-4">
+      <div class="panel stat"><div class="label">התחייבנו מתוך התקציב</div><div class="value">${ils(c.committed)}</div>
+        <div class="note">מתוך ${ils(c.total)} · שולם ${ils(c.paid)}</div><div class="bar"><i class="${c.committed>c.total&&c.total?"over":""}" style="width:${pct(c.committed,c.total)}%"></i></div></div>
+      <div class="panel stat"><div class="label">מוזמנים</div><div class="value">${nf.format(c.g.invited)}</div>
+        <div class="note">${nf.format(c.g.yes)} מגיעים · ${nf.format(c.g.pending)} לא ענו · ${nf.format(c.g.no)} לא מגיעים</div><div class="bar"><i style="width:${pct(c.g.yes,c.g.invited)}%"></i></div></div>
+      <div class="panel stat"><div class="label">ספקים סגורים</div><div class="value">${booked} / ${CATS.length-2}</div>
+        <div class="note">${D.vendors.reduce((n,v)=>n+vfiles(v).length,0)} מסמכים שמורים</div><div class="bar"><i style="width:${pct(booked,CATS.length-2)}%"></i></div></div>
+      <div class="panel stat"><div class="label">משימות</div><div class="value">${D.tasks.length-c.tasksOpen.length} / ${D.tasks.length}</div>
+        <div class="note">${c.overdue.length?`<span class="danger">${c.overdue.length} באיחור</span>`:"אין משימות באיחור"}</div><div class="bar"><i style="width:${pct(D.tasks.length-c.tasksOpen.length,D.tasks.length)}%"></i></div></div>
+    </div>
+    <div class="grid cols-2">
+      <div class="panel"><div class="row between"><h3>המשימות הקרובות</h3><button class="link" data-tab-go="tasks">כל המשימות</button></div>
+        ${next.length?`<div>${next.map(taskRow).join("")}</div>`:`<div class="empty">אין משימות פתוחות. ${D.tasks.length?"":`<br><button class="btn" data-act="tpl">טענו צ׳קליסט מוכן לפי התאריך</button>`}</div>`}
+      </div>
+      <div class="panel stack"><h3>הכסף בקצרה</h3>
+        <ul class="clean">
+          <li class="row between"><span>תקציב כולל</span><b class="num">${ils(c.total)}</b></li>
+          ${gMin?`<li class="row between"><span>אורחים מעל המינימום (${nf.format(extraHeads)} × ${ils(extraP)}) <span class="muted">מינימום בחוזה: ${nf.format(gMin)}</span></span><b class="num">${ils(venueExtra)}</b></li>`
+            :`<li class="row between"><span>הערכת אולם (${nf.format(c.heads)} מנות × ${ils(st.perPlate)})</span><b class="num">${ils(venueExtra)}</b></li>`}
+          <li class="row between"><span>מקורות: חסכונות והורים</span><b class="num">${ils(c.income)}</b></li>
+          <li class="row between"><span>צפי מתנות <span class="muted">(הערכה, לא לתכנן עליה)</span></span><b class="num">${ils(c.g.gifts)}</b></li>
+          <li class="row between"><span>נשאר לשלם</span><b class="num">${ils(c.committed-c.paid)}</b></li>
+        </ul>
+      </div>
+    </div>
+    <div class="panel"><h3>טעויות נפוצות שכדאי לבדוק</h3>
+      <ul class="clean muted" style="margin-top:6px">
+        <li>מחיר למנה: לשאול בכתב אם הוא כולל מע״מ (18%). ב־200 מנות ההפרש הוא בערך כל תקציב הצילום.</li>
+        <li>אקו״ם: היתר השמעת מוזיקה לאירוע משפחתי עולה 395.30 ₪. לוודא אם ה-DJ או האולם מכסים.</li>
+        <li>כשרות: לבדוק שתעודת הכשרות של האולם מתאימה למה שהמועצה הדתית שלכם מבקשת.</li>
+        <li>רישוי: לבקש מהאולם רישיון עסק ואישור כיבוי אש בתוקף, ולשאול מה התפוסה המותרת.</li>
+        <li>ביטול: לסגור מראש בחוזה מה קורה בדחייה או ביטול, ולשמור את החוזה כאן בלשונית הספקים.</li>
+      </ul>
+    </div>
+  </div>`;
+}
+
+// ---------- budget ----------
+let openCats=new Set(store.get("wedding-open")||[]);
+function itemsBlock(k,p){
+  const vend=D.vendors.filter(v=>v.cat===k&&v.status==="booked");
+  return `<div class="items">
+    <div class="item head"><span>פריט</span><span>מתוכנן</span><span>עלות בפועל</span><span>שולם</span><span></span></div>
+    ${vend.map(v=>`<div class="item vendor-line"><span>ספק: ${esc(v.name)}</span><span></span><span class="num">${ils(v.price)}</span><span class="num" style="font-size:13px">${ils(v.paid)}</span><span></span></div>`).join("")}
+    ${p.items.map(x=>`<div class="item">
+      <input type="text" id="it-t-${x.id}" data-item="${x.id}" data-f="title" value="${esc(x.title)}" aria-label="שם הפריט">
+      <input class="num" inputmode="numeric" id="it-p-${x.id}" data-item="${x.id}" data-f="plan" value="${x.plan===""||x.plan==null?"":esc(x.plan)}" aria-label="מתוכנן">
+      <input class="num" inputmode="numeric" id="it-a-${x.id}" data-item="${x.id}" data-f="actual" value="${x.actual===""||x.actual==null?"":esc(x.actual)}" placeholder="—" aria-label="עלות בפועל">
+      <input type="checkbox" data-itempaid="${x.id}" ${x.paid?"checked":""} aria-label="שולם" style="width:18px;height:18px;accent-color:var(--accent)">
+      <button class="link danger" data-itemdel="${x.id}" aria-label="מחיקת פריט">✕</button></div>`).join("")}
+    ${!p.items.length&&!vend.length?`<span class="muted" style="font-size:14px">אין עדיין פריטים. ברגע שתוסיפו פריט, המתוכנן של הקטגוריה יהיה סכום הפריטים.</span>`:""}
+    <form class="item-add" data-additem="${k}">
+      <input id="add-t-${k}" placeholder="פריט חדש (למשל: שמלה שנייה)" required style="flex:2 1 160px">
+      <input id="add-p-${k}" inputmode="numeric" placeholder="סכום מתוכנן" style="width:120px">
+      <button class="btn small">הוספה</button>
+    </form></div>`;
+}
+function viewBudget(){
+  const c=calc();
+  const P=Object.values(c.per), planSum=P.reduce((s,p)=>s+p.plan,0), autoP=P.filter(p=>p.auto&&p.plan), autoSum=autoP.reduce((s,p)=>s+p.plan,0);
+  const gap=c.total-planSum;
+  const gapTxt=!c.total?"":gap<0?`<span class="danger">חריגה של ${ils(-gap)} מהתקציב</span>`:gap>0?`<span style="color:var(--ok)">נשארו ${ils(gap)} לא מתוכננים</span>`:`<span style="color:var(--ok)">בדיוק לפי התקציב</span>`;
+  const autoTxt=autoP.length?`כולל ${ils(autoSum)} הצעה אוטומטית ל-${autoP.length} שורות שלא מילאתם`:"";
+  const rows=CATS.map(k=>{const p=c.per[k.k];const over=p.committed>p.plan&&p.plan>0;const open=openCats.has(k.k);
+    const cnt=p.items.length;
+    return `<tr class="cat-row"><td><button class="expand" data-expand="${k.k}" aria-expanded="${open}">${open?"▾":"◂"}</button>${esc(k.n)}${cnt?` <span class="muted" style="font-weight:400;font-size:13px">(${cnt})</span>`:""}</td>
+      <td><input class="num money" inputmode="numeric" id="plan-${k.k}" data-plan="${k.k}" ${p.fromItems?`readonly title="סכום הפריטים"`:""} value="${p.auto?"":Math.round(p.plan)}" placeholder="${p.auto&&p.plan?"הצעה: "+nf.format(Math.round(p.plan)):""}" aria-label="מתוכנן ל${esc(k.n)}"></td>
+      <td class="num ${over?"danger":""}">${ils(p.committed)}</td><td class="num">${ils(p.paid)}</td>
+      <td style="min-width:80px"><div class="bar" style="margin:0"><i class="${over?"over":""}" style="width:${p.plan?Math.min(100,p.committed/p.plan*100):0}%"></i></div></td></tr>
+      ${open?`<tr class="items-row"><td colspan="5">${itemsBlock(k.k,p)}</td></tr>`:""}`}).join("");
+  return `
+  <div class="stack" style="gap:16px">
+    <div class="grid cols-4">
+      <div class="panel stat"><div class="label">תקציב כולל</div><div class="value">${ils(c.total)}</div><div class="note"><button class="link" data-act="settings">עריכה</button></div></div>
+      <div class="panel stat"><div class="label">סה״כ מתוכנן בשורות</div><div class="value ${gap<0?"danger":""}">${ils(planSum)}</div><div class="note">${gapTxt}</div></div>
+      <div class="panel stat"><div class="label">התחייבנו</div><div class="value">${ils(c.committed)}</div><div class="note">ספקים שנסגרו + עלות בפועל של פריטים</div></div>
+      <div class="panel stat"><div class="label">שולם בפועל</div><div class="value">${ils(c.paid)}</div><div class="note">נשאר לשלם ${ils(c.committed-c.paid)}</div></div>
+    </div>
+    <div class="panel"><div class="row between" style="margin-bottom:8px"><h3>לפי קטגוריה</h3><span class="muted" style="font-size:13px">לחצו על החץ ליד קטגוריה כדי להוסיף בה פריטים.</span></div>
+      <div class="tbl-wrap"><table><thead><tr><th>קטגוריה</th><th>מתוכנן</th><th>התחייבנו</th><th>שולם</th><th></th></tr></thead><tbody>${rows}</tbody>
+        <tfoot><tr style="font-weight:700"><td>סה״כ</td><td class="num ${gap<0?"danger":""}">${ils(planSum)}</td><td class="num">${ils(c.committed)}</td><td class="num">${ils(c.paid)}</td><td></td></tr>
+        <tr><td colspan="5" style="border-bottom:0;font-size:14px">${gapTxt}${autoTxt?` <span class="muted">· ${autoTxt}</span>`:""}</td></tr></tfoot></table></div>
+    </div>
+  </div>`;
+}
+
+// ---------- vendors ----------
+const ui={gq:"",gside:"",grsvp:"",vcat:"",tshow:"open"};
+function viewVendors(){
+  const cats=ui.vcat?CATS.filter(c=>c.k===ui.vcat):CATS;
+  const groups=cats.map(k=>{
+    const list=D.vendors.filter(v=>v.cat===k.k).sort((a,b)=>(a.status==="booked"?-1:0)-(b.status==="booked"?-1:0)||num(a.price)-num(b.price));
+    if(!list.length)return "";
+    const prices=list.filter(v=>v.status!=="rejected"&&num(v.price)).map(v=>num(v.price));
+    const rng=prices.length>1?`טווח הצעות: ${ils(Math.min(...prices))} עד ${ils(Math.max(...prices))}`:"";
+    return `<section class="panel"><div class="cat-head"><h3>${esc(k.n)}</h3><span class="muted num" style="font-size:13px">${rng}</span></div>
+      <div class="vgrid">${list.map(vendorCard).join("")}</div></section>`;
+  }).filter(Boolean).join("");
+  return `
+  <div class="toolbar">
+    <select id="vcat" aria-label="סינון לפי קטגוריה"><option value="">כל הקטגוריות</option>${CATS.map(c=>`<option value="${c.k}" ${ui.vcat===c.k?"selected":""}>${esc(c.n)}</option>`).join("")}</select>
+    <span style="flex:1"></span>
+    <button class="btn" data-act="add-vendor">הוספת ספק או הצעת מחיר</button>
+  </div>
+  <div class="stack" style="gap:16px">${groups||`<div class="panel empty">עוד אין ספקים.<br>הוסיפו כל הצעת מחיר שקיבלתם, גם אם עוד לא סגרתם, כדי להשוות.<br><button class="btn" data-act="add-vendor">הוספת ספק</button></div>`}</div>`;
+}
+function fileLink(f){return `<button class="link" style="font-size:14px;text-align:right;overflow-wrap:anywhere" data-open="${esc(f.path)}" data-name="${esc(f.name)}">📄 ${esc(f.name||"קובץ")}</button>`}
+function vendorCard(v){
+  const [sl,sc]=VSTATUS[v.status]||VSTATUS.considering;
+  const due=num(v.price)-num(v.paid);
+  return `<div class="vendor ${v.status==="booked"?"booked":""} ${v.status==="rejected"?"rejected":""}">
+    <div class="row between"><b>${esc(v.name)}</b><span class="pill ${sc}">${sl}</span></div>
+    <div class="price">${num(v.price)?ils(v.price):"<span class='muted' style='font-size:15px'>אין מחיר</span>"}</div>
+    ${v.status==="booked"&&num(v.price)?`<div class="muted num" style="font-size:13px">שולם ${ils(v.paid)} · נשאר ${ils(due)}</div>`:""}
+    ${v.contact||v.phone?`<div style="font-size:14px">${esc(v.contact||"")} <span class="num" style="user-select:all">${esc(v.phone||"")}</span></div>`:""}
+    ${v.notes?`<details style="font-size:14px"><summary class="muted">הערות</summary><div class="muted" style="white-space:pre-wrap;margin-top:4px">${esc(v.notes)}</div></details>`:""}
+    <div class="row" style="margin-top:auto;gap:12px;align-items:flex-end">
+      <div class="stack" style="gap:2px;min-width:0;flex:1;align-items:flex-start">${vfiles(v).length?vfiles(v).map(fileLink).join(""):`<span class="muted" style="font-size:13px">אין חוזה</span>`}</div>
+      <button class="link" data-vedit="${v.id}">עריכה</button>
+    </div></div>`;
+}
+
+// ---------- guests ----------
+function viewGuests(){
+  const c=calc(), n=names();
+  let list=D.guests.slice();
+  const q=ui.gq.trim();
+  if(q) list=list.filter(g=>(g.name||"").includes(q)||(g.phone||"").includes(q)||String(g.table||"")===q);
+  if(ui.gside) list=list.filter(g=>(g.side||"both")===ui.gside);
+  if(ui.grsvp) list=list.filter(g=>(g.rsvp||"pending")===ui.grsvp);
+  list.sort((a,b)=>(a.name||"").localeCompare(b.name||"","he"));
+  const sideOpts=sel=>[["a",n.a],["b",n.b],["both","משותף"]].map(([k,l])=>`<option value="${k}" ${sel===k?"selected":""}>${esc(l)}</option>`).join("");
+  const grpOpts=sel=>Object.entries(GROUPS).map(([k,[l]])=>`<option value="${k}" ${sel===k?"selected":""}>${l}</option>`).join("");
+  return `
+  <div class="stack" style="gap:16px">
+    <div class="grid cols-4">
+      <div class="panel stat"><div class="label">הוזמנו</div><div class="value">${nf.format(c.g.invited)}</div><div class="note">${esc(n.a)} ${c.g.a} · ${esc(n.b)} ${c.g.b} · משותף ${c.g.both}</div></div>
+      <div class="panel stat"><div class="label">מגיעים</div><div class="value" style="color:var(--ok)">${nf.format(c.g.yes)}</div><div class="note">${c.g.invited?Math.round(c.g.yes/c.g.invited*100):0}% מהמוזמנים</div></div>
+      <div class="panel stat"><div class="label">לא ענו</div><div class="value">${nf.format(c.g.pending)}</div><div class="note">בשבוע האחרון מתקשרים לכולם</div></div>
+      <div class="panel stat"><div class="label">צפי מתנות</div><div class="value">${ils(c.g.gifts)}</div><div class="note">לפי קבוצה, בלי מי שלא מגיע</div></div>
+    </div>
+    <div class="panel">
+      <form id="gadd" class="row" style="margin-bottom:12px">
+        <input id="g-name" class="in" placeholder="שם (למשל: דוד ורחל כהן)" required style="flex:2 1 180px">
+        <input id="g-count" class="in" type="number" min="1" value="2" aria-label="כמה אנשים" style="width:70px">
+        <select id="g-side" class="in" aria-label="צד">${sideOpts("a")}</select>
+        <select id="g-group" class="in" aria-label="קבוצה">${grpOpts("friends")}</select>
+        <button class="btn">הוספה</button>
+        <button type="button" class="link" data-act="bulk">הדבקת רשימה</button>
+      </form>
+      <div class="toolbar">
+        <input type="search" id="gq" placeholder="חיפוש לפי שם, טלפון או מספר שולחן" value="${esc(ui.gq)}">
+        <select id="gside" aria-label="סינון לפי צד"><option value="">כל הצדדים</option>${sideOpts(ui.gside)}</select>
+        <select id="grsvp" aria-label="סינון לפי אישור הגעה"><option value="">כל הסטטוסים</option>${Object.entries(RSVP).map(([k,[l]])=>`<option value="${k}" ${ui.grsvp===k?"selected":""}>${l}</option>`).join("")}</select>
+        <span class="muted num">${list.length} רשומות</span>
+      </div>
+      ${list.length?`<div class="tbl-wrap"><table><thead><tr><th>שם</th><th>אנשים</th><th>צד</th><th>קבוצה</th><th>הגעה</th><th>שולחן</th><th>טלפון</th><th></th></tr></thead><tbody>
+      ${list.map(g=>`<tr>
+        <td>${esc(g.name)}</td>
+        <td><input class="narrow num" type="number" min="1" id="gc-${g.id}" data-g="${g.id}" data-f="count" value="${esc(g.count||1)}" aria-label="כמה אנשים"></td>
+        <td><select data-g="${g.id}" data-f="side" aria-label="צד">${sideOpts(g.side||"both")}</select></td>
+        <td><select data-g="${g.id}" data-f="group" aria-label="קבוצה">${grpOpts(g.group||"other")}</select></td>
+        <td><select data-g="${g.id}" data-f="rsvp" aria-label="אישור הגעה">${Object.entries(RSVP).map(([k,[l]])=>`<option value="${k}" ${(g.rsvp||"pending")===k?"selected":""}>${l}</option>`).join("")}</select></td>
+        <td><input class="narrow num" id="gt-${g.id}" data-g="${g.id}" data-f="table" value="${esc(g.table||"")}" aria-label="שולחן"></td>
+        <td><input style="width:110px" class="num" id="gp-${g.id}" data-g="${g.id}" data-f="phone" value="${esc(g.phone||"")}" aria-label="טלפון" inputmode="tel"></td>
+        <td><button class="link danger" data-gdel="${g.id}">מחיקה</button></td></tr>`).join("")}
+      </tbody></table></div>`:`<div class="empty">${D.guests.length?"אין תוצאות לסינון הזה":"הוסיפו את המוזמן הראשון למעלה, או הדביקו רשימה שלמה מאקסל או מוואטסאפ."}</div>`}
+    </div>
+  </div>`;
+}
+
+// ---------- tasks ----------
+function taskRow(t){
+  const d=daysTo(t.due), late=!t.done&&d!=null&&d<0;
+  const who=t.owner==="a"?names().a:t.owner==="b"?names().b:t.owner==="both"?"שנינו":"";
+  return `<div class="task ${t.done?"done":""}">
+    <input type="checkbox" data-tdone="${t.id}" ${t.done?"checked":""} aria-label="בוצע">
+    <div class="t"><div>${esc(t.title)}</div>
+      <div class="meta">${t.due?`<span class="${late?"danger":""}">${esc(fmtD(t.due))}${late?` · באיחור ${-d} ימים`:d!=null&&!t.done&&d<=14?` · בעוד ${d} ימים`:""}</span>`:""}${who?` · ${esc(who)}`:""}${t.cat&&CAT[t.cat]?` · ${esc(CAT[t.cat].n)}`:""}</div></div>
+    <button class="link" data-tedit="${t.id}">עריכה</button></div>`;
+}
+function viewTasks(){
+  const all=D.tasks.slice().sort((a,b)=>(a.due||"9").localeCompare(b.due||"9"));
+  if(!all.length) return `<div class="panel empty">אין עדיין משימות.<br>אפשר לטעון צ׳קליסט ישראלי מלא עם תאריכי יעד לפי תאריך החתונה.
+    <br><button class="btn" data-act="tpl">טענו צ׳קליסט מוכן</button> <button class="ghost" data-act="add-task">משימה חדשה</button></div>`;
+  const open=all.filter(t=>!t.done), done=all.filter(t=>t.done);
+  const late=open.filter(t=>t.due&&daysTo(t.due)<0), soon=open.filter(t=>t.due&&daysTo(t.due)>=0&&daysTo(t.due)<=30), later=open.filter(t=>!t.due||daysTo(t.due)>30);
+  const sec=(title,l)=>l.length?`<section class="panel"><h3 style="margin-bottom:4px">${title} <span class="muted num" style="font-size:14px">(${l.length})</span></h3>${l.map(taskRow).join("")}</section>`:"";
+  return `<div class="toolbar"><span class="muted">${done.length} מתוך ${all.length} בוצעו</span><span style="flex:1"></span>
+      <button class="ghost" data-act="toggle-done">${ui.tshow==="all"?"הסתרת משימות שבוצעו":"הצגת משימות שבוצעו"}</button>
+      <button class="btn" data-act="add-task">משימה חדשה</button></div>
+    <div class="stack" style="gap:16px">${sec("באיחור",late)+sec("ב-30 הימים הקרובים",soon)+sec("בהמשך",later)||`<div class="panel empty">כל המשימות הפתוחות בוצעו 🎉</div>`}
+    ${ui.tshow==="all"?sec("בוצעו",done):""}</div>`;
+}
+
+// ---------- modal forms ----------
+function modal(title,fields,values,{onSave,onDelete,extra}={}){
+  const ov=document.createElement("div");ov.className="overlay";
+  ov.innerHTML=`<form class="modal" novalidate><h2>${esc(title)}</h2><div class="form-grid">
+    ${fields.map(f=>{const v=values[f.k]??f.def??"";const id="m-"+f.k;let inp;
+      if(f.type==="select") inp=`<select id="${id}" name="${f.k}">${f.opts.map(([k,l])=>`<option value="${esc(k)}" ${String(v)===String(k)?"selected":""}>${esc(l)}</option>`).join("")}</select>`;
+      else if(f.type==="textarea") inp=`<textarea id="${id}" name="${f.k}" rows="${f.rows||3}">${esc(v)}</textarea>`;
+      else inp=`<input id="${id}" name="${f.k}" type="${f.type||"text"}" value="${esc(v)}" ${f.type==="number"?'inputmode="numeric"':""} placeholder="${esc(f.ph||"")}">`;
+      return `<label class="field ${f.full?"full":""}">${esc(f.l)}${inp}</label>`}).join("")}
+    ${extra||""}</div>
+    <div class="row between" style="margin-top:6px"><div class="row">${onDelete?`<button type="button" class="link danger" data-m="del">מחיקה</button>`:""}</div>
+      <div class="row"><button type="button" class="ghost" data-m="cancel">ביטול</button><button class="btn">שמירה</button></div></div></form>`;
+  document.body.appendChild(ov);
+  const form=ov.querySelector("form"), close=()=>ov.remove();
+  let armed=false;
+  ov.addEventListener("click",e=>{if(e.target===ov)close();const m=e.target.dataset.m;if(m==="cancel")close();
+    if(m==="del"){if(!armed){armed=true;e.target.textContent="ללחוץ שוב כדי למחוק";return}close();onDelete()}});
+  form.addEventListener("submit",async e=>{e.preventDefault();
+    const out={};fields.forEach(f=>{const el=form.elements[f.k];out[f.k]=f.type==="number"?(el.value===""?"":num(el.value)):el.value.trim()});
+    const req=fields.find(f=>f.req&&!out[f.k]);if(req){toast(`צריך למלא: ${req.l}`);return}
+    const ok=await onSave(out,form);if(ok!==false)close()});
+  setTimeout(()=>form.querySelector("input,select,textarea")?.focus(),30);
+  return form;
+}
+const catOpts=CATS.filter(c=>c.k!=="buffer").map(c=>[c.k,c.n]);
+function editSettings(){
+  const form=modal("פרטי החתונה",[
+    {k:"nameA",l:"שם א׳"},{k:"nameB",l:"שם ב׳"},
+    {k:"date",l:"תאריך החתונה",type:"date"},{k:"venue",l:"אולם / גן"},{k:"city",l:"עיר"},
+    {k:"budget",l:"תקציב כולל (₪)",type:"number"},{k:"perPlate",l:"מחיר למנה (₪, כולל מע״מ)",type:"number"},
+    {k:"guestMin",l:"מינימום אורחים בחוזה",type:"number"},{k:"extraPlate",l:"מחיר לאורח מעל המינימום (₪)",type:"number"},
+    {k:"savings",l:"חסכונות שלנו (₪)",type:"number"},{k:"parentsA",l:"עזרה מההורים צד א׳ (₪)",type:"number"},{k:"parentsB",l:"עזרה מההורים צד ב׳ (₪)",type:"number"},
+  ],D.settings,{onSave:v=>{saveSettings(v)},
+    extra:`<div class="field full" style="border-top:1px solid var(--line);padding-top:10px"><span class="muted" style="font-size:13px">המכשיר הזה מחובר ל-${esc(cfg.repo)}.</span>
+      <div class="row"><button type="button" class="link danger" id="m-logout">ניתוק המכשיר הזה</button></div></div>`});
+  form.querySelector("#m-logout").addEventListener("click",()=>{store.del("wedding-cfg");store.del("wedding-cache");location.reload()});
+}
+function editVendor(v){
+  const isNew=!v; v=v?clone(v):{status:"quoted",cat:ui.vcat||"venue",files:[]};
+  const removed=new Set();
+  const extra=`<div class="field full"><span>חוזים ומסמכים (PDF או תמונה)</span>
+     ${vfiles(v).map(f=>`<div class="row">${fileLink(f)}<button type="button" class="link danger" data-rmf="${esc(f.path)}">הסרה</button></div>`).join("")}
+     <input type="file" id="m-file" multiple accept="application/pdf,image/png,image/jpeg,image/webp">
+     <span class="muted" style="font-size:13px">אפשר לבחור כמה קבצים. קובץ Word? שמרו אותו קודם כ-PDF. עד 20MB לקובץ.</span></div>`;
+  const form=modal(isNew?"ספק חדש":"עריכת ספק",[
+    {k:"name",l:"שם הספק",req:true},{k:"cat",l:"קטגוריה",type:"select",opts:catOpts},
+    {k:"status",l:"סטטוס",type:"select",opts:Object.entries(VSTATUS).map(([k,[l]])=>[k,l])},
+    {k:"price",l:"מחיר (₪)",type:"number"},{k:"paid",l:"שולם עד עכשיו (₪)",type:"number"},
+    {k:"contact",l:"איש קשר"},{k:"phone",l:"טלפון",type:"tel"},
+    {k:"notes",l:"הערות (מה כלול, מע״מ, תנאי ביטול)",type:"textarea",rows:5,full:true},
+  ],v,{extra,
+    onDelete:isNew?null:async()=>{remove("vendors",v.id);for(const f of vfiles(v))deleteFile(f.path)},
+    onSave:async(out,form)=>{
+      const rec={...v,...out,id:v.id||rid(),updated:Date.now()};
+      let files=vfiles(v).filter(f=>!removed.has(f.path));
+      const picked=[...(form.querySelector("#m-file")?.files||[])];
+      if(picked.length){
+        const btn=form.querySelector(".btn");btn.disabled=true;btn.textContent="מעלה…";
+        try{for(const file of picked)files.push(await uploadFile(file))}
+        catch(e){btn.disabled=false;btn.textContent="שמירה";toast(e.msg||"ההעלאה נכשלה. נסו שוב.");return false}
+      }
+      rec.files=files; upsert("vendors",rec);
+      for(const p of removed)deleteFile(p);
+    }});
+  form.querySelectorAll("[data-rmf]").forEach(b=>b.addEventListener("click",()=>{removed.add(b.dataset.rmf);b.closest(".row").innerHTML=`<span class="muted">יוסר בשמירה</span>`}));
+}
+function editTask(t){
+  const isNew=!t;t=t||{owner:"both"};const n=names();
+  modal(isNew?"משימה חדשה":"עריכת משימה",[
+    {k:"title",l:"משימה",req:true,full:true},{k:"due",l:"תאריך יעד",type:"date"},
+    {k:"owner",l:"באחריות",type:"select",opts:[["both","שנינו"],["a",n.a],["b",n.b]]},
+    {k:"cat",l:"קשור לקטגוריה",type:"select",opts:[["","ללא"],...catOpts]},
+  ],t,{onDelete:isNew?null:()=>remove("tasks",t.id),
+    onSave:out=>{upsert("tasks",{...t,...out,id:t.id||rid(),done:!!t.done})}});
+}
+function bulkGuests(){
+  const n=names();
+  modal("הדבקת רשימת מוזמנים",[
+    {k:"text",l:"שורה לכל הזמנה. אפשר להוסיף פסיק ומספר אנשים: \"משפחת לוי, 4\"",type:"textarea",rows:8,full:true},
+    {k:"side",l:"צד",type:"select",opts:[["a",n.a],["b",n.b],["both","משותף"]]},
+    {k:"group",l:"קבוצה",type:"select",opts:Object.entries(GROUPS).map(([k,[l]])=>[k,l])},
+  ],{},{onSave:v=>{
+    const lines=v.text.split(/\n/).map(s=>s.trim()).filter(Boolean);
+    const recs=lines.map(line=>{const m=line.match(/^(.*?)[,\t]\s*(\d+)\s*$/);return {id:rid(),name:m?m[1].trim():line,count:m?+m[2]:1,side:v.side,group:v.group,rsvp:"pending"}});
+    mutate(d=>{d.guests.push(...recs)});
+    toast(`נוספו ${lines.length} הזמנות`);
+  }});
+}
+function loadTemplate(){
+  if(!D.settings.date){toast("קודם צריך תאריך חתונה");editSettings();return}
+  const recs=TEMPLATE.map(([off,title,cat,done])=>({id:rid(),title,cat,due:addDays(D.settings.date,off),owner:"both",done:!!done}));
+  mutate(d=>{d.tasks.push(...recs)});
+  toast("הצ׳קליסט נטען. סמנו מה שכבר עשיתם.");
+}
+
+// ---------- render + events ----------
+let tab="overview";
+function render(){
+  if(!cfg){return}
+  $("#hero").hidden=false;$("#tabs").hidden=false;
+  renderHeader(); setSync(syncState);
+  document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===tab));
+  const ae=document.activeElement, f=ae&&ae.id, sel=f&&ae.selectionStart;
+  // keep what the viewer is typing: a refresh can land before the field's change event saves it
+  const typing=f&&ae.tagName==="INPUT"&&ae.type!=="checkbox"&&$("#view").contains(ae)?ae.value:null;
+  $("#view").innerHTML=({overview:viewOverview,budget:viewBudget,vendors:viewVendors,guests:viewGuests,tasks:viewTasks}[tab])();
+  if(f){const el=document.getElementById(f);if(el){if(typing!=null&&el.value!==typing)el.value=typing;el.focus();try{if(sel!=null)el.setSelectionRange(sel,sel)}catch(e){}}}
+}
+let rT;const rerender=()=>{clearTimeout(rT);rT=setTimeout(render,30)};
+
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-tab],[data-tab-go],[data-act],[data-vedit],[data-tedit],[data-gdel],[data-expand],[data-itemdel],[data-open]");if(!t||!cfg)return;
+  if(t.dataset.tab||t.dataset.tabGo){tab=t.dataset.tab||t.dataset.tabGo;store.set("wedding-tab",tab);history.replaceState(null,"","#"+tab);render();window.scrollTo({top:0});return}
+  if(t.dataset.open){e.preventDefault();openFile(t.dataset.open,t.dataset.name);return}
+  const a=t.dataset.act;
+  if(a==="settings")editSettings();
+  if(a==="add-vendor")editVendor();
+  if(a==="add-task")editTask();
+  if(a==="tpl")loadTemplate();
+  if(a==="bulk")bulkGuests();
+  if(a==="toggle-done"){ui.tshow=ui.tshow==="all"?"open":"all";render()}
+  if(a==="rabbi-done")saveSettings({rabbiOpened:true});
+  if(t.dataset.expand){const k=t.dataset.expand;openCats.has(k)?openCats.delete(k):openCats.add(k);store.set("wedding-open",[...openCats]);render()}
+  if(t.dataset.itemdel)remove("items",t.dataset.itemdel);
+  if(t.dataset.vedit)editVendor(D.vendors.find(v=>v.id===t.dataset.vedit));
+  if(t.dataset.tedit)editTask(D.tasks.find(x=>x.id===t.dataset.tedit));
+  if(t.dataset.gdel){if(t.dataset.armed)remove("guests",t.dataset.gdel);else{t.dataset.armed="1";t.textContent="בטוח?"}}
+});
+$("#btn-settings").addEventListener("click",()=>cfg&&editSettings());
+document.addEventListener("change",e=>{
+  const el=e.target;if(!cfg)return;
+  if(el.dataset.tdone)patch("tasks",el.dataset.tdone,{done:el.checked});
+  if(el.dataset.itempaid)patch("items",el.dataset.itempaid,{paid:el.checked});
+  if(el.dataset.item){const f=el.dataset.f;patch("items",el.dataset.item,{[f]:f==="title"?el.value.trim():el.value===""?"":num(el.value)})}
+  if(el.dataset.plan&&!el.readOnly)setCatPlan(el.dataset.plan,el.value===""?"":num(el.value));
+  if(el.dataset.g){const f=el.dataset.f;patch("guests",el.dataset.g,{[f]:f==="count"?Math.max(1,num(el.value)):el.value})}
+  if(el.id==="vcat"){ui.vcat=el.value;render()}
+  if(el.id==="gside"){ui.gside=el.value;render()}
+  if(el.id==="grsvp"){ui.grsvp=el.value;render()}
+});
+document.addEventListener("input",e=>{if(e.target.id==="gq"){ui.gq=e.target.value;rerender()}});
+document.addEventListener("submit",e=>{
+  const f=e.target;if(!cfg)return;
+  if(f.id==="gadd"){e.preventDefault();const name=$("#g-name").value.trim();if(!name)return;
+    upsert("guests",{id:rid(),name,count:Math.max(1,num($("#g-count").value)||1),side:$("#g-side").value,group:$("#g-group").value,rsvp:"pending"});
+    $("#g-name").value="";$("#g-name").focus();}
+  if(f.dataset.additem){e.preventDefault();const k=f.dataset.additem;const title=$("#add-t-"+k).value.trim();if(!title)return;
+    const plan=$("#add-p-"+k).value;
+    const c=calc().per[k];
+    const recs=[];
+    // the category's typed amount becomes its first item, so adding a line adds to it instead of replacing it
+    if(!c.fromItems&&!c.auto&&c.plan) recs.push({id:rid(),cat:k,title:CAT[k].n,plan:Math.round(c.plan),actual:"",paid:false});
+    recs.push({id:rid(),cat:k,title,plan:plan===""?"":num(plan),actual:"",paid:false});
+    mutate(d=>{recs.forEach(r=>{if(!d.items.some(x=>x.id===r.id))d.items.push(r)})});
+    $("#add-t-"+k).value="";$("#add-p-"+k).value="";$("#add-t-"+k).focus();}
+});
+
+// ---------- setup (first visit on a device) ----------
+function viewSetup(err){
+  $("#hero").hidden=true;$("#tabs").hidden=true;
+  $("#view").innerHTML=`<div class="setup panel stack" style="gap:14px">
+    <h1 style="font-size:30px">החתונה שלנו</h1>
+    <p class="muted" style="margin:0">החיבור נעשה פעם אחת בכל מכשיר. הנתונים והחוזים נשמרים בריפו פרטי ב-GitHub, ורק מי שיש לו מפתח גישה יכול לקרוא אותם.</p>
+    <ol class="muted" style="font-size:14px">
+      <li>ב-GitHub: <b>Settings</b> ← <b>Developer settings</b> ← <b>Fine-grained tokens</b> ← <b>Generate new token</b>.</li>
+      <li>ב-Repository access לבחור <b>Only select repositories</b> ואת הריפו של הנתונים.</li>
+      <li>ב-Permissions ← Repository permissions: <b>Contents</b> = <b>Read and write</b>.</li>
+      <li>להעתיק את המפתח (מתחיל ב-<code>github_pat_</code>) ולהדביק כאן.</li>
+    </ol>
+    <form id="setup" class="stack">
+      <label class="field">ריפו הנתונים<input id="s-repo" dir="ltr" value="${esc((cfg&&cfg.repo)||"noambenzimra/wedding-data")}" required></label>
+      <label class="field">מפתח גישה<input id="s-token" dir="ltr" type="password" autocomplete="off" required></label>
+      ${err?`<div class="alert bad">${esc(err)}</div>`:""}
+      <div><button class="btn" id="s-go">התחברות</button></div>
+    </form></div>`;
+  $("#setup").addEventListener("submit",async e=>{e.preventDefault();
+    const repo=$("#s-repo").value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\/$/,""), token=$("#s-token").value.trim();
+    $("#s-go").disabled=true;$("#s-go").textContent="מתחבר…";
+    cfg={repo,token};
+    try{const r=await gh("");
+      if(r.status===401) throw "המפתח לא תקף. בדקו שהעתקתם את כולו.";
+      if(r.status===404) throw "לא מצאתי את הריפו. בדקו את השם, ושהמפתח קיבל גישה אליו.";
+      if(!r.ok) throw "החיבור נכשל ("+r.status+"). נסו שוב.";
+      store.set("wedding-cfg",cfg); start();
+    }catch(m){cfg=null;viewSetup(typeof m==="string"?m:"החיבור נכשל. בדקו את החיבור לאינטרנט.")}
+  });
+}
+async function start(){
+  const h=location.hash.slice(1), ok=["overview","budget","vendors","guests","tasks"], saved=store.get("wedding-tab");
+  tab=ok.includes(h)?h:ok.includes(saved)?saved:"overview";
+  const cached=store.get("wedding-cache");
+  if(cached&&cached.data){remote=cached;D=clone(normalize(cached.data));render()}
+  try{remote=await fetchData();D=clone(remote.data);store.set("wedding-cache",remote);render()}
+  catch(e){
+    if(e&&(e.status===401||e.status===403)){viewSetup("המפתח כבר לא תקף. צרו מפתח חדש והתחברו שוב.");return}
+    if(!cached){$("#view").innerHTML=`<div class="panel empty">לא הצלחתי לטעון את הנתונים. בדקו את החיבור לאינטרנט ורעננו.</div>`;$("#hero").hidden=false}
+    else toast("אין חיבור. מוצגת הגרסה האחרונה שנשמרה במכשיר.");
+  }
+}
+cfg?start():viewSetup();
+</script>
+</body>
+</html>
