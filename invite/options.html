@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>עיצובים להזמנה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500&family=Assistant:wght@400;600&display=swap">
+<style>
+/* Layout: a row of phone-sized previews, one per theme, each with its name and a link to the full invitation. */
+:root{--bg:#f4f1ec;--fg:#221c18;--muted:#6f675e;--line:#ddd5ca;--accent:#7d2350;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"Assistant",Arial,sans-serif}
+.wrap{max-width:1400px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 60px}
+h1{font-family:"Frank Ruhl Libre",serif;font-weight:500;margin:0 0 6px;font-size:clamp(26px,5vw,36px)}
+p.sub{margin:0 0 24px;color:var(--muted)}
+.grid{display:grid;gap:22px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+figure{margin:0;display:flex;flex-direction:column;gap:10px}
+.phone{position:relative;width:100%;aspect-ratio:375/760;border-radius:28px;overflow:hidden;border:6px solid #1c1c1c;background:#000;box-shadow:0 20px 40px -24px rgb(0 0 0 / .5)}
+.phone iframe{position:absolute;top:0;right:0;width:375px;height:760px;border:0;transform-origin:top right}
+figcaption{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+figcaption b{font-family:"Frank Ruhl Libre",serif;font-weight:500;font-size:20px}
+figcaption span{color:var(--muted);font-size:14px}
+a.open{color:var(--accent);font-weight:600;font-size:14px;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>עיצובים להזמנה</h1>
+  <p class="sub">כל אחד מהם נפתח מתוך המעטפה, עם אותו Waze ואותה הוספה ליומן. "לפתיחה" מראה את החוויה המלאה.</p>
+  <div class="grid" id="grid"></div>
+</div>
+<script>
+const T=[
+  ["classic","קלאסי","שמנת וזהב, מאופק"],
+  ["night","לילה זהוב","כחול לילה, אותיות זהב וכוכבים מנצנצים"],
+  ["olive","גן זיתים","ירוק מרווה וענפי זית, אוורירי"],
+  ["riviera","ריביירה","אריחים כחולים ולימונים, חתונת קיץ"],
+  ["velvet","בורדו קטיפה","בורדו עמוק, קשת ורודה וכתב יד"],
+  ["modern","מודרני","טיפוגרפיה גדולה ונועזת, צבע אחד חזק"],
+];
+const g=document.getElementById("grid");
+g.innerHTML=T.map(([k,n,d])=>`<figure>
+  <div class="phone"><iframe loading="lazy" title="${n}" src="./?t=${k}&open=1"></iframe></div>
+  <figcaption><div><b>${n}</b><br><span>${d}</span></div><a class="open" href="./${k==="classic"?"":"?t="+k}" target="_blank">לפתיחה ←</a></figcaption></figure>`).join("");
+function fit(){document.querySelectorAll(".phone").forEach(p=>{p.querySelector("iframe").style.transform=`scale(${p.clientWidth/375})`})}
+addEventListener("resize",fit);fit();
+</script>
+</body>
+</html>
