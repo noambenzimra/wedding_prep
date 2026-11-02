@@ -464,12 +464,42 @@ function viewBudget(){
       <div class="panel stat"><div class="label">התחייבנו</div><div class="value">${ils(c.committed)}</div><div class="note">ספקים שנסגרו + עלות בפועל של פריטים</div></div>
       <div class="panel stat"><div class="label">שולם בפועל</div><div class="value">${ils(c.paid)}</div><div class="note">נשאר לשלם ${ils(c.committed-c.paid)}</div></div>
     </div>
-    <div class="panel"><div class="row between" style="margin-bottom:8px"><h3>לפי קטגוריה</h3><span class="muted" style="font-size:13px">לחצו על החץ ליד קטגוריה כדי להוסיף בה פריטים.</span></div>
+    <div class="panel"><div class="row between" style="margin-bottom:8px"><h3>לפי קטגוריה</h3>
+      <div class="row"><span class="muted" style="font-size:13px">לחצו על החץ ליד קטגוריה כדי להוסיף בה פריטים.</span><button class="ghost" data-act="export-budget">ייצוא לאקסל</button></div></div>
       <div class="tbl-wrap"><table><thead><tr><th>קטגוריה</th><th>מתוכנן</th><th>התחייבנו</th><th>שולם</th><th></th></tr></thead><tbody>${rows}</tbody>
         <tfoot><tr style="font-weight:700"><td>סה״כ</td><td class="num ${gap<0?"danger":""}">${ils(planSum)}</td><td class="num">${ils(c.committed)}</td><td class="num">${ils(c.paid)}</td><td></td></tr>
         <tr><td colspan="5" style="border-bottom:0;font-size:14px">${gapTxt}${autoTxt?` <span class="muted">· ${autoTxt}</span>`:""}</td></tr></tfoot></table></div>
     </div>
   </div>`;
+}
+
+function loadScript(src){return new Promise((ok,bad)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=bad;document.head.appendChild(s)})}
+async function exportBudget(){
+  try{if(!window.XLSX)await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js")}
+  catch(e){toast("לא הצלחתי לטעון את רכיב האקסל. בדקו את החיבור לאינטרנט.");return}
+  const c=calc(), n=names(), v=x=>x===""||x==null?null:num(x);
+  const rows=[["תקציב החתונה של "+n.a+" ו"+n.b+(D.settings.date?" · "+fmtD(D.settings.date):"")],[],
+    ["קטגוריה","פריט","מתוכנן","התחייבנו","שולם","נשאר לשלם"]];
+  const bold=[0,2];
+  CATS.forEach(k=>{const p=c.per[k.k];
+    bold.push(rows.length);
+    rows.push([k.n,p.auto?"(הצעה אוטומטית)":"",Math.round(p.plan),p.committed,p.paid,p.committed-p.paid]);
+    D.vendors.filter(x=>x.cat===k.k&&x.status==="booked").forEach(x=>rows.push(["","ספק: "+x.name,null,num(x.price),num(x.paid),num(x.price)-num(x.paid)]));
+    p.items.forEach(x=>{const a=num(x.actual),pd=x.paid?a:0;rows.push(["",x.title,v(x.plan),v(x.actual),x.actual===""?null:pd,x.actual===""?null:a-pd])});
+  });
+  const planSum=Object.values(c.per).reduce((s,p)=>s+p.plan,0);
+  rows.push([]);bold.push(rows.length);
+  rows.push(["סה״כ","",Math.round(planSum),c.committed,c.paid,c.committed-c.paid]);
+  rows.push(["תקציב כולל","",c.total]);
+  rows.push([c.total-planSum<0?"חריגה":"נשאר לא מתוכנן","",Math.abs(Math.round(c.total-planSum))]);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"]=[{wch:24},{wch:34},{wch:12},{wch:12},{wch:12},{wch:12}];
+  ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:5}}];
+  for(const key in ws){if(key[0]==="!")continue;const cell=ws[key];if(cell.t==="n")cell.z='#,##0 "₪"';
+    if(bold.includes(XLSX.utils.decode_cell(key).r))cell.s={font:{bold:true}}}
+  const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};
+  XLSX.utils.book_append_sheet(wb,ws,"תקציב");
+  XLSX.writeFile(wb,`תקציב חתונה - ${n.a} ו${n.b}.xlsx`);
 }
 
 // ---------- vendors ----------
@@ -513,7 +543,8 @@ function viewGuests(){
   const c=calc(), n=names();
   let list=D.guests.slice();
   const q=ui.gq.trim();
-  if(q) list=list.filter(g=>(g.name||"").includes(q)||(g.phone||"").includes(q)||String(g.table||"")===q);
+  const ql=q.toLowerCase();
+  if(q) list=list.filter(g=>(g.name||"").toLowerCase().includes(ql)||(g.notes||"").includes(q)||(g.phone||"").includes(q)||String(g.table||"")===q);
   if(ui.gside) list=list.filter(g=>(g.side||"both")===ui.gside);
   if(ui.grsvp) list=list.filter(g=>(g.rsvp||"pending")===ui.grsvp);
   list.sort((a,b)=>(a.name||"").localeCompare(b.name||"","he"));
@@ -537,12 +568,12 @@ function viewGuests(){
         <button type="button" class="link" data-act="bulk">הדבקת רשימה</button>
       </form>
       <div class="toolbar">
-        <input type="search" id="gq" placeholder="חיפוש לפי שם, טלפון או מספר שולחן" value="${esc(ui.gq)}">
+        <input type="search" id="gq" placeholder="חיפוש לפי שם, הערה, טלפון או מספר שולחן" value="${esc(ui.gq)}">
         <select id="gside" aria-label="סינון לפי צד"><option value="">כל הצדדים</option>${sideOpts(ui.gside)}</select>
         <select id="grsvp" aria-label="סינון לפי אישור הגעה"><option value="">כל הסטטוסים</option>${Object.entries(RSVP).map(([k,[l]])=>`<option value="${k}" ${ui.grsvp===k?"selected":""}>${l}</option>`).join("")}</select>
         <span class="muted num">${list.length} רשומות</span>
       </div>
-      ${list.length?`<div class="tbl-wrap"><table><thead><tr><th>שם</th><th>אנשים</th><th>צד</th><th>קבוצה</th><th>הגעה</th><th>שולחן</th><th>טלפון</th><th></th></tr></thead><tbody>
+      ${list.length?`<div class="tbl-wrap"><table><thead><tr><th>שם</th><th>אנשים</th><th>צד</th><th>קבוצה</th><th>הגעה</th><th>שולחן</th><th>טלפון</th><th>הערות</th><th></th></tr></thead><tbody>
       ${list.map(g=>`<tr>
         <td>${esc(g.name)}</td>
         <td><input class="narrow num" type="number" min="1" id="gc-${g.id}" data-g="${g.id}" data-f="count" value="${esc(g.count||1)}" aria-label="כמה אנשים"></td>
@@ -551,6 +582,7 @@ function viewGuests(){
         <td><select data-g="${g.id}" data-f="rsvp" aria-label="אישור הגעה">${Object.entries(RSVP).map(([k,[l]])=>`<option value="${k}" ${(g.rsvp||"pending")===k?"selected":""}>${l}</option>`).join("")}</select></td>
         <td><input class="narrow num" id="gt-${g.id}" data-g="${g.id}" data-f="table" value="${esc(g.table||"")}" aria-label="שולחן"></td>
         <td><input style="width:110px" class="num" id="gp-${g.id}" data-g="${g.id}" data-f="phone" value="${esc(g.phone||"")}" aria-label="טלפון" inputmode="tel"></td>
+        <td><input style="width:170px" id="gn-${g.id}" data-g="${g.id}" data-f="notes" value="${esc(g.notes||"")}" aria-label="הערות"></td>
         <td><button class="link danger" data-gdel="${g.id}">מחיקה</button></td></tr>`).join("")}
       </tbody></table></div>`:`<div class="empty">${D.guests.length?"אין תוצאות לסינון הזה":"הוסיפו את המוזמן הראשון למעלה, או הדביקו רשימה שלמה מאקסל או מוואטסאפ."}</div>`}
     </div>
@@ -701,6 +733,7 @@ document.addEventListener("click",e=>{
   if(a==="add-task")editTask();
   if(a==="tpl")loadTemplate();
   if(a==="bulk")bulkGuests();
+  if(a==="export-budget")exportBudget();
   if(a==="toggle-done"){ui.tshow=ui.tshow==="all"?"open":"all";render()}
   if(a==="rabbi-done")saveSettings({rabbiOpened:true});
   if(t.dataset.expand){const k=t.dataset.expand;openCats.has(k)?openCats.delete(k):openCats.add(k);store.set("wedding-open",[...openCats]);render()}
