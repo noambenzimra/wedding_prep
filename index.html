@@ -745,7 +745,7 @@ function viewSetup(err){
     <h1 style="font-size:30px">החתונה שלנו</h1>
     <p class="muted" style="margin:0">החיבור נעשה פעם אחת בכל מכשיר. הנתונים והחוזים נשמרים בריפו פרטי ב-GitHub, ורק מי שיש לו מפתח גישה יכול לקרוא אותם.</p>
     <ol class="muted" style="font-size:14px">
-      <li>ב-GitHub: <b>Settings</b> ← <b>Developer settings</b> ← <b>Fine-grained tokens</b> ← <b>Generate new token</b>.</li>
+      <li>לפתוח את <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener" style="color:var(--accent)">יצירת מפתח חדש ב-GitHub</a>.</li>
       <li>ב-Repository access לבחור <b>Only select repositories</b> ואת הריפו של הנתונים.</li>
       <li>ב-Permissions ← Repository permissions: <b>Contents</b> = <b>Read and write</b>.</li>
       <li>להעתיק את המפתח (מתחיל ב-<code>github_pat_</code>) ולהדביק כאן.</li>
@@ -757,15 +757,22 @@ function viewSetup(err){
       <div><button class="btn" id="s-go">התחברות</button></div>
     </form></div>`;
   $("#setup").addEventListener("submit",async e=>{e.preventDefault();
-    const repo=$("#s-repo").value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\/$/,""), token=$("#s-token").value.trim();
+    // copying from a Hebrew page can carry invisible direction marks; a token is only letters, digits and _
+    const repo=$("#s-repo").value.replace(/[^\w.\-\/]/g,"").replace(/^https?:?\/\/github\.com\//,"").replace(/\/$/,""), token=$("#s-token").value.replace(/[^\w]/g,"");
     $("#s-go").disabled=true;$("#s-go").textContent="מתחבר…";
     cfg={repo,token};
     try{const r=await gh("");
       if(r.status===401) throw "המפתח לא תקף. בדקו שהעתקתם את כולו.";
-      if(r.status===404) throw "לא מצאתי את הריפו. בדקו את השם, ושהמפתח קיבל גישה אליו.";
+      if(r.status===404){
+        // say what the token can see, so a wrong repo selection is obvious
+        let seen="";
+        try{const u=await fetch("https://api.github.com/user/repos?per_page=100",{cache:"no-store",headers:{Authorization:"Bearer "+token,Accept:"application/vnd.github+json"}});
+          if(u.ok){const list=(await u.json()).map(x=>x.full_name);seen=list.length?" למפתח יש גישה רק אל: "+list.join(", ")+".":" למפתח אין גישה לאף ריפו."}}catch(e){}
+        throw `לא מצאתי את ${repo}.${seen} ב-GitHub: עריכת המפתח ← Repository access ← Only select repositories ← wedding-data ← Update.`;
+      }
       if(!r.ok) throw "החיבור נכשל ("+r.status+"). נסו שוב.";
       store.set("wedding-cfg",cfg); start();
-    }catch(m){cfg=null;viewSetup(typeof m==="string"?m:"החיבור נכשל. בדקו את החיבור לאינטרנט.")}
+    }catch(m){cfg=null;viewSetup(typeof m==="string"?m:"החיבור נכשל: "+((m&&m.message)||"שגיאה לא ידועה"))}
   });
 }
 async function start(){
