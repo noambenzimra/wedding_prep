@@ -172,7 +172,9 @@ const CATS = [
   {k:"other",   n:"שונות (מתנות, טיפים)", share:2},
   {k:"buffer",  n:"בלת״ם", share:5},
 ];
-const CAT = Object.fromEntries(CATS.map(c=>[c.k,c]));
+// built-in categories plus the ones the couple added (stored in settings.customCats)
+function allCats(){return CATS.concat((D.settings.customCats||[]).map(c=>({k:c.k,n:c.n,share:0,custom:true})))}
+const catName=k=>(allCats().find(c=>c.k===k)||{}).n||"";
 const VSTATUS = {considering:["בבדיקה","mut"], quoted:["התקבלה הצעה","acc"], booked:["נסגר","ok"], rejected:["ירד מהפרק","bad"]};
 const GROUPS = {close:["משפחה קרובה",750], family:["משפחה מורחבת",350], friends:["חברים",400], work:["עבודה",300], other:["מכרים",250]};
 const RSVP = {pending:["לא ענו","mut"], yes:["מגיעים","ok"], no:["לא מגיעים","bad"]};
@@ -290,6 +292,7 @@ async function flush(){
 async function refresh(){
   if(!cfg||flushing||ops.length||document.hidden)return;
   try{const r=await fetchData(); if(!remote||r.sha!==remote.sha){remote=r;D=clone(r.data);store.set("wedding-cache",r);rerender()}}catch(e){}
+  processInbox();
 }
 window.addEventListener("beforeunload",e=>{if(ops.length||flushing){e.preventDefault();e.returnValue=""}});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refresh()});
@@ -328,13 +331,99 @@ async function openFile(path,name){
   }catch(e){if(w)w.close();toast("לא הצלחתי לפתוח את הקובץ.")}
 }
 
+// ---------- parents' inbox: a separate private repo the parents' links can only write to ----------
+const inboxRepo=()=>D.settings.inboxRepo||"noambenzimra/wedding-inbox";
+let inboxBusy=false;
+async function processInbox(){
+  if(!cfg||inboxBusy||document.hidden)return; inboxBusy=true;
+  try{
+    const H={Authorization:"Bearer "+cfg.token,Accept:"application/vnd.github+json"}, base=`https://api.github.com/repos/${inboxRepo()}/contents/`;
+    const r=await fetch(base+"inbox",{cache:"no-store",headers:H});
+    if(!r.ok)return;
+    const files=(await r.json()).filter(f=>f.type==="file"&&f.name.endsWith(".json"));
+    if(!files.length)return;
+    const got=[];
+    for(const f of files){
+      const fr=await fetch(base+f.path,{cache:"no-store",headers:{...H,Accept:"application/vnd.github.raw"}});
+      if(!fr.ok)continue;
+      let sub=null;try{sub=JSON.parse(await fr.text())}catch(e){}
+      got.push({f,sub});
+    }
+    // submissions are untrusted: keep only known fields, clipped
+    const recs=[];
+    got.forEach(({sub})=>{if(!sub||!Array.isArray(sub.guests))return;
+      sub.guests.forEach(g=>{if(!g||!g.id||!g.name)return;
+        recs.push({id:String(g.id).slice(0,40),name:String(g.name).slice(0,120),count:Math.max(1,Math.min(50,num(g.count)||1)),
+          side:["a","b","both"].includes(sub.side)?sub.side:"both",group:GROUPS[g.group]?g.group:"other",rsvp:"pending",
+          phone:String(g.phone||"").slice(0,30),notes:String(g.notes||"").slice(0,200),src:"הוסיף/ה "+String(sub.by||"").slice(0,30)})})});
+    if(recs.length){
+      mutate(d=>{recs.forEach(x=>{if(!d.guests.some(y=>y.id===x.id))d.guests.push(x)})});
+      // delete inbox files only after the guests are saved in data.json
+      for(let i=0;i<60&&(ops.length||flushing);i++)await new Promise(ok=>setTimeout(ok,500));
+      if(ops.length||flushing||syncState==="err")return;
+      const by=[...new Set(got.map(x=>x.sub&&x.sub.by).filter(Boolean))].join(" ו");
+      toast(recs.length===1?`נוספה הזמנה אחת מ${by}`:`נוספו ${recs.length} הזמנות מ${by}`);
+    }
+    for(const {f} of got)
+      await fetch(base+f.path,{method:"DELETE",headers:{...H,"Content-Type":"application/json"},body:JSON.stringify({message:"נקלט",sha:f.sha})});
+  }catch(e){}finally{inboxBusy=false}
+}
+const b64url={enc:b=>b64encode(b).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""),
+  dec:s=>Uint8Array.from(atob(s.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0))};
+async function pwKey(pw,salt,use){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:310000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,[use]);
+}
+// the parents' token travels only inside the link's #fragment, encrypted with their password
+async function sealLink(payload,pw){
+  const salt=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},await pwKey(pw,salt,"encrypt"),new TextEncoder().encode(JSON.stringify(payload))));
+  const all=new Uint8Array(28+ct.length);all.set(salt);all.set(iv,16);all.set(ct,28);
+  const u=new URL("add.html",location.href);u.search="";u.hash="";
+  return u.href+"#v1."+b64url.enc(all);
+}
+function parentLinks(){
+  const n=names();
+  const form=modal("קישור להוספת מוזמנים",[
+    {k:"by",l:"למי הקישור (השם שיופיע ליד מה שיוסיפו)",req:true,ph:"למשל: שלומי"},
+    {k:"side",l:"לאיזה צד יתווספו המוזמנים",type:"select",opts:[["b",n.b],["a",n.a],["both","משותף"]]},
+    {k:"pw",l:"סיסמה לקישור",req:true},
+    {k:"repo",l:"ריפו התיבה",def:inboxRepo()},
+    {k:"token",l:"מפתח הגישה של התיבה (רק ל-wedding-inbox)",type:"password",req:true,full:true},
+  ],{},{
+    extra:`<div class="full muted" style="font-size:13px">המפתח כאן הוא מפתח נפרד, שיש לו גישה רק לריפו התיבה. אל תשתמשו במפתח הראשי שלכם. הסיסמה והמפתח לא נשמרים, הם רק מוצפנים לתוך הקישור.</div><div class="full" id="m-result"></div>`,
+    onSave:async(out,form)=>{
+      const repo=out.repo.replace(/[^\w.\-\/]/g,""), token=out.token.replace(/[^\w]/g,""), res=form.querySelector("#m-result");
+      if(token===cfg.token){toast("זה המפתח הראשי שלכם. צרו מפתח נפרד רק ל-wedding-inbox.");return false}
+      const btn=form.querySelector(".btn");btn.disabled=true;btn.textContent="בודק…";
+      try{
+        const t=await fetch("https://api.github.com/repos/"+repo,{cache:"no-store",headers:{Authorization:"Bearer "+token,Accept:"application/vnd.github+json"}});
+        if(!t.ok) throw "המפתח של התיבה לא רואה את "+repo+". בדקו שבחרתם בו את הריפו הזה.";
+        const j=await t.json(); if(j.permissions&&j.permissions.push===false) throw "למפתח של התיבה אין הרשאת כתיבה (Contents: Read and write).";
+        const mine=await fetch("https://api.github.com/repos/"+repo,{cache:"no-store",headers:{Authorization:"Bearer "+cfg.token,Accept:"application/vnd.github+json"}});
+        if(repo!==inboxRepo())saveSettings({inboxRepo:repo});
+        const link=await sealLink({t:token,r:repo,by:out.by,side:out.side,couple:`${n.a} ו${n.b}`},out.pw.trim());
+        res.innerHTML=`<div class="stack" style="gap:6px"><b>הקישור של ${esc(out.by)}:</b>
+          <textarea id="m-link" rows="3" readonly dir="ltr" style="width:100%;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px">${esc(link)}</textarea>
+          <div class="row"><button type="button" class="btn small" id="m-copy">העתקת הקישור</button><span class="muted" style="font-size:13px">שלחו את הקישור, ואת הסיסמה בהודעה נפרדת.</span></div>
+          ${mine.ok?"":`<div class="alert bad" style="font-size:13px">המפתח הראשי שלכם עוד לא רואה את ${esc(repo)}, אז מוזמנים שיתווספו לא ייקלטו. הוסיפו את הריפו למפתח הראשי ב-GitHub.</div>`}</div>`;
+        res.querySelector("#m-copy").addEventListener("click",async()=>{const ta=res.querySelector("#m-link");
+          try{await navigator.clipboard.writeText(ta.value);toast("הקישור הועתק")}catch(e){ta.select();toast("סמנו והעתיקו ידנית")}});
+        form.querySelector("#m-pw").value="";form.querySelector("#m-token").value="";
+      }catch(m){toast(typeof m==="string"?m:"הבדיקה נכשלה. נסו שוב.")}
+      btn.disabled=false;btn.textContent="יצירת קישור";
+      return false;
+    }});
+  form.querySelector(".btn").textContent="יצירת קישור";
+}
+
 // ---------- derived numbers ----------
 const names = ()=>({a:D.settings.nameA||"צד א׳", b:D.settings.nameB||"צד ב׳"});
 const vfiles = v=>v.files||[];
 function calc(){
   const st=D.settings, total=num(st.budget);
   const per={};
-  CATS.forEach(c=>{
+  allCats().forEach(c=>{
     const items=D.items.filter(x=>x.cat===c.k);
     const set=st.catPlan&&st.catPlan[c.k]!=null&&st.catPlan[c.k]!=="";
     const plan= items.length ? items.reduce((s,x)=>s+num(x.plan),0) : set ? num(st.catPlan[c.k]) : total*c.share/100;
@@ -441,7 +530,23 @@ function itemsBlock(k,p){
       <input id="add-t-${k}" placeholder="פריט חדש (למשל: שמלה שנייה)" required style="flex:2 1 160px">
       <input id="add-p-${k}" inputmode="numeric" placeholder="סכום מתוכנן" style="width:120px">
       <button class="btn small">הוספה</button>
-    </form></div>`;
+    </form>
+    ${allCats().find(c=>c.k===k)?.custom?`<div class="row" style="justify-content:space-between;margin-top:4px">
+      <button class="link" data-catrename="${k}">שינוי שם הקטגוריה</button>
+      ${!p.items.length&&!D.vendors.some(v=>v.cat===k)?`<button class="link danger" data-catdel="${k}">מחיקת הקטגוריה</button>`:`<span class="muted" style="font-size:13px">כדי למחוק קטגוריה צריך קודם להסיר ממנה פריטים וספקים</span>`}</div>`:""}</div>`;
+}
+function editCategory(k){
+  const cur=(D.settings.customCats||[]).find(c=>c.k===k);
+  modal(cur?"שינוי שם הקטגוריה":"קטגוריה חדשה",[
+    {k:"n",l:"שם הקטגוריה",req:true,ph:"למשל: ירח דבש"},
+    ...(cur?[]:[{k:"plan",l:"סכום מתוכנן (₪)",type:"number"}]),
+  ],cur||{},{onSave:out=>{
+    if(cur){mutate(d=>{const c=(d.settings.customCats||[]).find(c=>c.k===k);if(c)c.n=out.n});return}
+    const nk="c"+rid();
+    mutate(d=>{d.settings.customCats=[...(d.settings.customCats||[]),{k:nk,n:out.n}];
+      if(out.plan!=="")d.settings.catPlan={...(d.settings.catPlan||{}),[nk]:out.plan}});
+    openCats.add(nk);store.set("wedding-open",[...openCats]);
+  }});
 }
 function viewBudget(){
   const c=calc();
@@ -449,7 +554,7 @@ function viewBudget(){
   const gap=c.total-planSum;
   const gapTxt=!c.total?"":gap<0?`<span class="danger">חריגה של ${ils(-gap)} מהתקציב</span>`:gap>0?`<span style="color:var(--ok)">נשארו ${ils(gap)} לא מתוכננים</span>`:`<span style="color:var(--ok)">בדיוק לפי התקציב</span>`;
   const autoTxt=autoP.length?`כולל ${ils(autoSum)} הצעה אוטומטית ל-${autoP.length} שורות שלא מילאתם`:"";
-  const rows=CATS.map(k=>{const p=c.per[k.k];const over=p.committed>p.plan&&p.plan>0;const open=openCats.has(k.k);
+  const rows=allCats().map(k=>{const p=c.per[k.k];const over=p.committed>p.plan&&p.plan>0;const open=openCats.has(k.k);
     const cnt=p.items.length;
     return `<tr class="cat-row"><td><button class="expand" data-expand="${k.k}" aria-expanded="${open}">${open?"▾":"◂"}</button>${esc(k.n)}${cnt?` <span class="muted" style="font-weight:400;font-size:13px">(${cnt})</span>`:""}</td>
       <td><input class="num money" inputmode="numeric" id="plan-${k.k}" data-plan="${k.k}" ${p.fromItems?`readonly title="סכום הפריטים"`:""} value="${p.auto?"":Math.round(p.plan)}" placeholder="${p.auto&&p.plan?"הצעה: "+nf.format(Math.round(p.plan)):""}" aria-label="מתוכנן ל${esc(k.n)}"></td>
@@ -469,6 +574,7 @@ function viewBudget(){
       <div class="tbl-wrap"><table><thead><tr><th>קטגוריה</th><th>מתוכנן</th><th>התחייבנו</th><th>שולם</th><th></th></tr></thead><tbody>${rows}</tbody>
         <tfoot><tr style="font-weight:700"><td>סה״כ</td><td class="num ${gap<0?"danger":""}">${ils(planSum)}</td><td class="num">${ils(c.committed)}</td><td class="num">${ils(c.paid)}</td><td></td></tr>
         <tr><td colspan="5" style="border-bottom:0;font-size:14px">${gapTxt}${autoTxt?` <span class="muted">· ${autoTxt}</span>`:""}</td></tr></tfoot></table></div>
+      <div class="row" style="margin-top:10px"><button class="btn small" data-act="add-cat">+ הוספת קטגוריה</button></div>
     </div>
   </div>`;
 }
@@ -481,7 +587,7 @@ async function exportBudget(){
   const rows=[["תקציב החתונה של "+n.a+" ו"+n.b+(D.settings.date?" · "+fmtD(D.settings.date):"")],[],
     ["קטגוריה","פריט","מתוכנן","התחייבנו","שולם","נשאר לשלם"]];
   const bold=[0,2];
-  CATS.forEach(k=>{const p=c.per[k.k];
+  allCats().forEach(k=>{const p=c.per[k.k];
     bold.push(rows.length);
     rows.push([k.n,p.auto?"(הצעה אוטומטית)":"",Math.round(p.plan),p.committed,p.paid,p.committed-p.paid]);
     D.vendors.filter(x=>x.cat===k.k&&x.status==="booked").forEach(x=>rows.push(["","ספק: "+x.name,null,num(x.price),num(x.paid),num(x.price)-num(x.paid)]));
@@ -505,7 +611,7 @@ async function exportBudget(){
 // ---------- vendors ----------
 const ui={gq:"",gside:"",grsvp:"",vcat:"",tshow:"open"};
 function viewVendors(){
-  const cats=ui.vcat?CATS.filter(c=>c.k===ui.vcat):CATS;
+  const cats=ui.vcat?allCats().filter(c=>c.k===ui.vcat):allCats();
   const groups=cats.map(k=>{
     const list=D.vendors.filter(v=>v.cat===k.k).sort((a,b)=>(a.status==="booked"?-1:0)-(b.status==="booked"?-1:0)||num(a.price)-num(b.price));
     if(!list.length)return "";
@@ -516,7 +622,7 @@ function viewVendors(){
   }).filter(Boolean).join("");
   return `
   <div class="toolbar">
-    <select id="vcat" aria-label="סינון לפי קטגוריה"><option value="">כל הקטגוריות</option>${CATS.map(c=>`<option value="${c.k}" ${ui.vcat===c.k?"selected":""}>${esc(c.n)}</option>`).join("")}</select>
+    <select id="vcat" aria-label="סינון לפי קטגוריה"><option value="">כל הקטגוריות</option>${allCats().map(c=>`<option value="${c.k}" ${ui.vcat===c.k?"selected":""}>${esc(c.n)}</option>`).join("")}</select>
     <span style="flex:1"></span>
     <button class="btn" data-act="add-vendor">הוספת ספק או הצעת מחיר</button>
   </div>
@@ -566,6 +672,7 @@ function viewGuests(){
         <select id="g-group" class="in" aria-label="קבוצה">${grpOpts("friends")}</select>
         <button class="btn">הוספה</button>
         <button type="button" class="link" data-act="bulk">הדבקת רשימה</button>
+        <button type="button" class="link" data-act="parent-links">קישור להורים</button>
       </form>
       <div class="toolbar">
         <input type="search" id="gq" placeholder="חיפוש לפי שם, הערה, טלפון או מספר שולחן" value="${esc(ui.gq)}">
@@ -596,7 +703,7 @@ function taskRow(t){
   return `<div class="task ${t.done?"done":""}">
     <input type="checkbox" data-tdone="${t.id}" ${t.done?"checked":""} aria-label="בוצע">
     <div class="t"><div>${esc(t.title)}</div>
-      <div class="meta">${t.due?`<span class="${late?"danger":""}">${esc(fmtD(t.due))}${late?` · באיחור ${-d} ימים`:d!=null&&!t.done&&d<=14?` · בעוד ${d} ימים`:""}</span>`:""}${who?` · ${esc(who)}`:""}${t.cat&&CAT[t.cat]?` · ${esc(CAT[t.cat].n)}`:""}</div></div>
+      <div class="meta">${t.due?`<span class="${late?"danger":""}">${esc(fmtD(t.due))}${late?` · באיחור ${-d} ימים`:d!=null&&!t.done&&d<=14?` · בעוד ${d} ימים`:""}</span>`:""}${who?` · ${esc(who)}`:""}${t.cat&&catName(t.cat)?` · ${esc(catName(t.cat))}`:""}</div></div>
     <button class="link" data-tedit="${t.id}">עריכה</button></div>`;
 }
 function viewTasks(){
@@ -637,7 +744,7 @@ function modal(title,fields,values,{onSave,onDelete,extra}={}){
   setTimeout(()=>form.querySelector("input,select,textarea")?.focus(),30);
   return form;
 }
-const catOpts=CATS.filter(c=>c.k!=="buffer").map(c=>[c.k,c.n]);
+const catOpts=()=>allCats().filter(c=>c.k!=="buffer").map(c=>[c.k,c.n]);
 function editSettings(){
   const form=modal("פרטי החתונה",[
     {k:"nameA",l:"שם א׳"},{k:"nameB",l:"שם ב׳"},
@@ -658,7 +765,7 @@ function editVendor(v){
      <input type="file" id="m-file" multiple accept="application/pdf,image/png,image/jpeg,image/webp">
      <span class="muted" style="font-size:13px">אפשר לבחור כמה קבצים. קובץ Word? שמרו אותו קודם כ-PDF. עד 20MB לקובץ.</span></div>`;
   const form=modal(isNew?"ספק חדש":"עריכת ספק",[
-    {k:"name",l:"שם הספק",req:true},{k:"cat",l:"קטגוריה",type:"select",opts:catOpts},
+    {k:"name",l:"שם הספק",req:true},{k:"cat",l:"קטגוריה",type:"select",opts:catOpts()},
     {k:"status",l:"סטטוס",type:"select",opts:Object.entries(VSTATUS).map(([k,[l]])=>[k,l])},
     {k:"price",l:"מחיר (₪)",type:"number"},{k:"paid",l:"שולם עד עכשיו (₪)",type:"number"},
     {k:"contact",l:"איש קשר"},{k:"phone",l:"טלפון",type:"tel"},
@@ -684,7 +791,7 @@ function editTask(t){
   modal(isNew?"משימה חדשה":"עריכת משימה",[
     {k:"title",l:"משימה",req:true,full:true},{k:"due",l:"תאריך יעד",type:"date"},
     {k:"owner",l:"באחריות",type:"select",opts:[["both","שנינו"],["a",n.a],["b",n.b]]},
-    {k:"cat",l:"קשור לקטגוריה",type:"select",opts:[["","ללא"],...catOpts]},
+    {k:"cat",l:"קשור לקטגוריה",type:"select",opts:[["","ללא"],...catOpts()]},
   ],t,{onDelete:isNew?null:()=>remove("tasks",t.id),
     onSave:out=>{upsert("tasks",{...t,...out,id:t.id||rid(),done:!!t.done})}});
 }
@@ -724,7 +831,7 @@ function render(){
 let rT;const rerender=()=>{clearTimeout(rT);rT=setTimeout(render,30)};
 
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-tab],[data-tab-go],[data-act],[data-vedit],[data-tedit],[data-gdel],[data-expand],[data-itemdel],[data-open]");if(!t||!cfg)return;
+  const t=e.target.closest("[data-tab],[data-tab-go],[data-act],[data-vedit],[data-tedit],[data-gdel],[data-expand],[data-itemdel],[data-open],[data-catrename],[data-catdel]");if(!t||!cfg)return;
   if(t.dataset.tab||t.dataset.tabGo){tab=t.dataset.tab||t.dataset.tabGo;store.set("wedding-tab",tab);history.replaceState(null,"","#"+tab);render();window.scrollTo({top:0});return}
   if(t.dataset.open){e.preventDefault();openFile(t.dataset.open,t.dataset.name);return}
   const a=t.dataset.act;
@@ -734,6 +841,10 @@ document.addEventListener("click",e=>{
   if(a==="tpl")loadTemplate();
   if(a==="bulk")bulkGuests();
   if(a==="export-budget")exportBudget();
+  if(a==="add-cat")editCategory();
+  if(a==="parent-links")parentLinks();
+  if(t.dataset.catrename)editCategory(t.dataset.catrename);
+  if(t.dataset.catdel){if(t.dataset.armed){const k=t.dataset.catdel;mutate(d=>{d.settings.customCats=(d.settings.customCats||[]).filter(c=>c.k!==k);if(d.settings.catPlan)delete d.settings.catPlan[k]})}else{t.dataset.armed="1";t.textContent="ללחוץ שוב כדי למחוק"}}
   if(a==="toggle-done"){ui.tshow=ui.tshow==="all"?"open":"all";render()}
   if(a==="rabbi-done")saveSettings({rabbiOpened:true});
   if(t.dataset.expand){const k=t.dataset.expand;openCats.has(k)?openCats.delete(k):openCats.add(k);store.set("wedding-open",[...openCats]);render()}
@@ -765,7 +876,7 @@ document.addEventListener("submit",e=>{
     const c=calc().per[k];
     const recs=[];
     // the category's typed amount becomes its first item, so adding a line adds to it instead of replacing it
-    if(!c.fromItems&&!c.auto&&c.plan) recs.push({id:rid(),cat:k,title:CAT[k].n,plan:Math.round(c.plan),actual:"",paid:false});
+    if(!c.fromItems&&!c.auto&&c.plan) recs.push({id:rid(),cat:k,title:catName(k),plan:Math.round(c.plan),actual:"",paid:false});
     recs.push({id:rid(),cat:k,title,plan:plan===""?"":num(plan),actual:"",paid:false});
     mutate(d=>{recs.forEach(r=>{if(!d.items.some(x=>x.id===r.id))d.items.push(r)})});
     $("#add-t-"+k).value="";$("#add-p-"+k).value="";$("#add-t-"+k).focus();}
@@ -813,7 +924,7 @@ async function start(){
   tab=ok.includes(h)?h:ok.includes(saved)?saved:"overview";
   const cached=store.get("wedding-cache");
   if(cached&&cached.data){remote=cached;D=clone(normalize(cached.data));render()}
-  try{remote=await fetchData();D=clone(remote.data);store.set("wedding-cache",remote);render()}
+  try{remote=await fetchData();D=clone(remote.data);store.set("wedding-cache",remote);render();processInbox()}
   catch(e){
     if(e&&(e.status===401||e.status===403)){viewSetup("המפתח כבר לא תקף. צרו מפתח חדש והתחברו שוב.");return}
     if(!cached){$("#view").innerHTML=`<div class="panel empty">לא הצלחתי לטעון את הנתונים. בדקו את החיבור לאינטרנט ורעננו.</div>`;$("#hero").hidden=false}
